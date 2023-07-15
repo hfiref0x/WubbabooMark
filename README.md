@@ -5,13 +5,13 @@
 
 <img src="https://raw.githubusercontent.com/hfiref0x/WubbabooMark/master/Help/SeriousWubbaboo.png" width="150" />
 
-**WubbabooMark** aimed to detect system anomalies caused by usage of software debuggers or special software designed to hide debuggers presence from debugee by tampering various aspects of system information.
+**WubbabooMark** aimed to detect traces of usage of software debuggers or special software designed to hide debuggers presence from debugee by tampering various aspects of program environment.
 
-Typical set of debuggers today is actually limited to a few most popular solutions like Ghidra/IDA/OllyDbg/x32+x64dbg/WinDbg and so on. There is a special class of software which aim is to "hide" debugger from being detected by debugee. Usually debugger detection used by another software class - software protectors (e.g. Themida/VMProtect/Obsidium/WinLicense). Sometimes software that counteracts these detections refered as "anti-anti-debug" or whatsoever. Personally I found all this "anti-anti-" kind of annoying because we can continue and it will be anti-anti-anti with all sense lost somewhere in the middle. 
+Typical set of debuggers nowadays is actually limited to a few most popular solutions like Ghidra/IDA/OllyDbg/x32+x64dbg/WinDbg and so on. There is a special class of software designed to "hide" debugger from being detected by debugee. Debugger detection usually used by another software class - software protectors (e.g. Themida/VMProtect/Obsidium/WinLicense). Sometimes software that counteracts these detections referred as "anti-anti-debug" or whatsoever. Personally I found all of this "anti-anti" kind of annoying because we can continue and it will be "anti-anti-anti-..." with all sense lost somewhere in the middle.
 
-What this class of software actually does is creating a landscape of additional of detection vectors, while some of most notorious in a sake of being able to work compromise operation system components integrity and thus security overall. And all of them, absolutely all of them brings multiple bugs due to inability correctly replicate system mechanics in most cases. Sounds scary? Not much that scary as most of this software users (they are called "reververs/crackers") know what they're doing and doing that on purpose... right? What they actually hiding then if they are largely expanding detection landscape? They work against known or reverse-engineered methods implemented in commercial protectors... sometimes work.
+What this "anti-anti" class of software actually does is creating a landscape of additional detection vectors, while some of most notorious pieces compromise operation system components integrity and security in the sake of being able to work. And all of them, absolutely all of them brings multiple bugs due to inability correctly replicate original behavior of hooked/emulated functions. Sounds scary? Not much that scary as most of this software users (they call themselves "reversers/crackers") know what they're doing and doing that on purpose... right? Carelessly implemented targeted antidetection methods against known and well reverse-engineered commercial protectors creating a bunch of new artifacts. WubbabooMark using publicly known, actualized and enchanced methods to list those artifacts.
 
-The continious VMProtect (one of the most notorious and long living software protectors) drama generates a lot of lulz so I just can't stay away of it. Since VMProtect recently became "open-sourced" under DGAF license I had an opportunity to look closer on it "anti-" stuff. What it have implemented clearly demonstrates author following mainstream "scene" with little own creativity in some aspects due to limits as commercial product and software support requirements. Direct syscalls, heavens gate? What year is it now? However reinventing this stuff even in 2018 seems have doomed to dead some of this so called "anti-anti" softwares.
+The continuous VMProtect drama generates a lot of fun so I just can't stay away of it. Since VMProtect recently goes "open-source" under DGAF license I had an opportunity to look closer on its "anti-" stuff. What VMProtect has under the hood clearly demonstrates authors following mainstream "scene" with little own creativity in some aspects due to limits as commercial product and software support requirements. Direct syscalls, heavens gate? What year is it now? However, reinventing this stuff even in 2018 seems have doomed to dead some of this so called "anti-anti" software.
 
 Anyway, we have some debuggers, some "tampering tools/plugins" etc, lets see how good they are!
 
@@ -19,9 +19,9 @@ Anyway, we have some debuggers, some "tampering tools/plugins" etc, lets see how
 
 x64 Windows 10/11 and above.
 
-Anything below Windows 10 is unsupported, *well because it is actually no longer supported by Microsoft*. What a surprise! Forget Windows XP/7 and move on.
+Anything below Windows 10 is unsupported. Well, because those OSes discontinued by Microsoft and mainstream industry. What a surprise! What a surprise! Forget stone age systems and move on.
 
-A note about Windows 11 preview/dev builds - since this program rely on completely undocumented stuff there can be problems with most recent versions that program doesn't know resulting in false-positives or program unexpected crashes.
+Windows 11 preview/developer builds WARNING: since this program rely on completely undocumented stuff there can be problems with most recent versions that program doesn't know about resulting in false-positive detection or program crashes. Use on your own risk.
 
 # Implemented tests
 

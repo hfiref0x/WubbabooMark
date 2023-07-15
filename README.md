@@ -1,11 +1,13 @@
 # WubbabooMark
 ## Debugger Anti-Detection Benchmark
 
-<img src="https://raw.githubusercontent.com/hfiref0x/WubbabooMark/master/Help/SeriousWubbaboo.png" width="600" />
+[![Build status](https://ci.appveyor.com/api/projects/status/7dc9a2naqdn3ej4y?svg=true)](https://ci.appveyor.com/project/hfiref0x/wubbaboomark)
 
-WubbabooMark aimed to detect system anomalies caused by usage of software debuggers or special software designed to hide debuggers presence from debugee by tampering various aspects of system information.
+<img src="https://raw.githubusercontent.com/hfiref0x/WubbabooMark/master/Help/SeriousWubbaboo.png" width="150" />
 
-Typical set of debuggers today is actually limited to a few most popular solutions like for example Ghidra/IDA/OllyDbg/x32+x64dbg/WinDbg and so on. There is exist special class of software which aim is to "hide" debugger from being detected by debugee. Usually debugger detection used by another software class - software protectors (e.g. Themida/VMProtect/Obsidium/WinLicense). Sometimes software that counteracts these detections refered as "anti-anti-debug" or whatsoever. Personally I found all this "anti-anti-" kind of annoying because we can continue and it will be anti-anti-anti with all sense lost somewhere in the middle. 
+**WubbabooMark** aimed to detect system anomalies caused by usage of software debuggers or special software designed to hide debuggers presence from debugee by tampering various aspects of system information.
+
+Typical set of debuggers today is actually limited to a few most popular solutions like Ghidra/IDA/OllyDbg/x32+x64dbg/WinDbg and so on. There is a special class of software which aim is to "hide" debugger from being detected by debugee. Usually debugger detection used by another software class - software protectors (e.g. Themida/VMProtect/Obsidium/WinLicense). Sometimes software that counteracts these detections refered as "anti-anti-debug" or whatsoever. Personally I found all this "anti-anti-" kind of annoying because we can continue and it will be anti-anti-anti with all sense lost somewhere in the middle. 
 
 What this class of software actually does is creating a landscape of additional of detection vectors, while some of most notorious in a sake of being able to work compromise operation system components integrity and thus security overall. And all of them, absolutely all of them brings multiple bugs due to inability correctly replicate system mechanics in most cases. Sounds scary? Not much that scary as most of this software users (they are called "reververs/crackers") know what they're doing and doing that on purpose... right? What they actually hiding then if they are largely expanding detection landscape? They work against known or reverse-engineered methods implemented in commercial protectors... sometimes work.
 

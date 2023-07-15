@@ -1,0 +1,183 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="sup.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcmp.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strncpy.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcpy.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcat.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcmpi.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="hde\hde64.c">
+      <Filter>hde</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\u64tohex.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\ultohex.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strend.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\ultostr.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strncmpi.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strlen.c">
+      <Filter>Headers\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\debugger.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\win32k.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\objects.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\memory.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\syscall.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\winver.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\modules.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\processes.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\bootcfg.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\threads.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\common.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\reports.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+    <ClCompile Include="probes\handletrace.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="global.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ntos.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="sup.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\minirtl.h">
+      <Filter>Headers\minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\rtltypes.h">
+      <Filter>Headers\minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="hde\hde64.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="hde\pstdint.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="hde\table64.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="ntproto.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="consts.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="probes.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ntuser.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ntgdi.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{8e62e288-7f95-476f-bed0-a0e700ac6156}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{8bc246d8-304c-4cce-850c-6e5750f4d755}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{23042a57-af4e-487f-901c-7e23ef2a5f92}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\minirtl">
+      <UniqueIdentifier>{3400a2ea-2458-4bc4-8a0c-b3625f1dc691}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hde">
+      <UniqueIdentifier>{27f625dd-6c20-4c2d-aa66-c8eaac60a5e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\probes">
+      <UniqueIdentifier>{0bc73214-ff4a-4ca5-860a-ed6d7eebe01a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource.rc">
+      <Filter>Resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="rsrc\CheckFailed.ico">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="rsrc\CheckPassed.ico">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="rsrc\CheckWarning.ico">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="rsrc\CheckDetection.ico">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="rsrc\CheckWubbaboo.ico">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="rsrc\Main.ico">
+      <Filter>Resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="ntcall.asm">
+      <Filter>Source</Filter>
+    </MASM>
+  </ItemGroup>
+</Project>

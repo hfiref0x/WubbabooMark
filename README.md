@@ -180,6 +180,8 @@ Here I should put some links to what is now reinvented wheels about debuggers de
 # Project Name
 Wubbaboo is a mischievous spirit from Cognosphere videogame Honkai Star Rail. It likes to hide in unexpected places and does a lot of pranks just like the software class we are testing.
 
+No wubbaboos were harmed during tests!
+
 # Authors
 
 + (c) 2023 WubbabooMark Project

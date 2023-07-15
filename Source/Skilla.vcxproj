@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{dc386280-e889-49f3-9d16-929d77b106fe}</ProjectGuid>
+    <RootNamespace>ScyllaRevealer</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>Skilla</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>.\output\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>.\output\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>$(SolutionDir);$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>.\output\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>.\output\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>$(SolutionDir);$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <ManifestResourceCompile />
+    <Manifest>
+      <AdditionalManifestFiles>skilla.manifest</AdditionalManifestFiles>
+      <EnableDpiAwareness>true</EnableDpiAwareness>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ControlFlowGuard>false</ControlFlowGuard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Optimization>MinSpace</Optimization>
+      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <CreateHotpatchableImage>false</CreateHotpatchableImage>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntelJCCErratum>true</IntelJCCErratum>
+      <DebugInformationFormat>None</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
+      <SetChecksum>true</SetChecksum>
+      <AdditionalOptions>/NOCOFFGRPINFO %(AdditionalOptions)</AdditionalOptions>
+      <Version>10.0</Version>
+      <MinimumRequiredVersion>10.0</MinimumRequiredVersion>
+    </Link>
+    <ManifestResourceCompile />
+    <Manifest>
+      <AdditionalManifestFiles>skilla.manifest</AdditionalManifestFiles>
+      <EnableDpiAwareness>true</EnableDpiAwareness>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="hde\hde64.c" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="minirtl\u64tohex.c" />
+    <ClCompile Include="minirtl\ultohex.c" />
+    <ClCompile Include="minirtl\ultostr.c" />
+    <ClCompile Include="minirtl\_strcat.c" />
+    <ClCompile Include="minirtl\_strcmp.c" />
+    <ClCompile Include="minirtl\_strcmpi.c" />
+    <ClCompile Include="minirtl\_strcpy.c" />
+    <ClCompile Include="minirtl\_strend.c" />
+    <ClCompile Include="minirtl\_strlen.c" />
+    <ClCompile Include="minirtl\_strncmpi.c" />
+    <ClCompile Include="minirtl\_strncpy.c" />
+    <ClCompile Include="probes.cpp" />
+    <ClCompile Include="probes\bootcfg.cpp" />
+    <ClCompile Include="probes\common.cpp" />
+    <ClCompile Include="probes\debugger.cpp" />
+    <ClCompile Include="probes\handletrace.cpp" />
+    <ClCompile Include="probes\modules.cpp" />
+    <ClCompile Include="probes\objects.cpp" />
+    <ClCompile Include="probes\memory.cpp" />
+    <ClCompile Include="probes\processes.cpp" />
+    <ClCompile Include="probes\reports.cpp" />
+    <ClCompile Include="probes\syscall.cpp" />
+    <ClCompile Include="probes\threads.cpp" />
+    <ClCompile Include="probes\win32k.cpp" />
+    <ClCompile Include="probes\winver.cpp" />
+    <ClCompile Include="sup.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="consts.h" />
+    <ClInclude Include="global.h" />
+    <ClInclude Include="hde\hde64.h" />
+    <ClInclude Include="hde\pstdint.h" />
+    <ClInclude Include="hde\table64.h" />
+    <ClInclude Include="minirtl\minirtl.h" />
+    <ClInclude Include="minirtl\rtltypes.h" />
+    <ClInclude Include="ntgdi.h" />
+    <ClInclude Include="ntos.h" />
+    <ClInclude Include="ntproto.h" />
+    <ClInclude Include="ntuser.h" />
+    <ClInclude Include="probes.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="sup.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="ntcall.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="rsrc\CheckDetection.ico" />
+    <Image Include="rsrc\CheckFailed.ico" />
+    <Image Include="rsrc\CheckPassed.ico" />
+    <Image Include="rsrc\CheckWarning.ico" />
+    <Image Include="rsrc\CheckWubbaboo.ico" />
+    <Image Include="rsrc\Main.ico" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

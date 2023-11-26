@@ -6,6 +6,7 @@
 #define IDR_MENU                        105
 #define IDD_ABOUT                       106
 #define IDD_SETTINGS                    124
+#define IDR_ACCELERATOR1                126
 #define IDI_ICON_MAIN                   200
 #define IDI_ICON_DETECTION              201
 #define IDI_ICON_WUBBABOO               202
@@ -43,13 +44,14 @@
 #define ID_PROBES_SAVETOFILE            40004
 #define ID_FILE_RUNASADMIN              40005
 #define ID_PROBES_SETTINGS              40006
+#define ID_HELP_SHOWHELP                40013
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        126
-#define _APS_NEXT_COMMAND_VALUE         40007
+#define _APS_NEXT_RESOURCE_VALUE        127
+#define _APS_NEXT_COMMAND_VALUE         40016
 #define _APS_NEXT_CONTROL_VALUE         1008
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

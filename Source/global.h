@@ -81,6 +81,7 @@
 extern HWND hwndList;
 extern HWND hwndStatusBar;
 extern ULONG g_cAnomalies;
+extern volatile LONG gbScanRunning;
 
 #include "consts.h"
 #include "ntos.h"

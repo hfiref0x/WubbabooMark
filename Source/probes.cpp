@@ -111,12 +111,12 @@ NTSTATUS SkValidateClientInfo(
     //
     // Validate PEB ptr for some stubborns.
     //
-    ntStatus = NtQueryInformationProcess(hObject, 
-        ProcessBasicInformation, 
-        &pbi, 
-        sizeof(pbi), 
+    ntStatus = NtQueryInformationProcess(hObject,
+        ProcessBasicInformation,
+        &pbi,
+        sizeof(pbi),
         &returnLength);
-    
+
     if (!NT_SUCCESS(ntStatus)) {
         NtClose(hObject);
         return ntStatus;
@@ -295,6 +295,39 @@ VOID SkDestroyContext(
 }
 
 /*
+* SkpEnableControls
+*
+* Purpose:
+*
+* Enable or disable menu controls during scan.
+*
+*/
+VOID SkpEnableControls(
+    _In_ HWND MainWindow,
+    _In_ BOOL fEnable
+)
+{
+    DWORD dwFlags = MF_BYCOMMAND;
+    HMENU hMenu = GetMenu(MainWindow);
+
+    ULONG ulControls[] = {
+        ID_FILE_RUNASADMIN,
+        ID_PROBES_SETTINGS,
+        ID_PROBES_SAVETOFILE,
+        ID_HELP_SHOWHELP,
+        ID_HELP_ABOUT
+    };
+
+    if (fEnable)
+        dwFlags |= MF_ENABLED;
+    else
+        dwFlags |= MF_DISABLED;
+
+    for (ULONG i = 0; i < RTL_NUMBER_OF(ulControls); i++)
+        EnableMenuItem(hMenu, ulControls[i], dwFlags);
+}
+
+/*
 * SkStartProbe
 *
 * Purpose:
@@ -315,16 +348,14 @@ DWORD SkpProbeThread(
     dwWaitResult = WaitForSingleObject(gProbeWait, INFINITE);
     if (dwWaitResult == WAIT_OBJECT_0) {
 
-        EnableMenuItem(GetMenu(si.MainWindow), ID_PROBES_SETTINGS, MF_BYCOMMAND | MF_DISABLED);
-        EnableMenuItem(GetMenu(si.MainWindow), ID_PROBES_SAVETOFILE, MF_BYCOMMAND | MF_DISABLED);
-
+        InterlockedExchange(&gbScanRunning, TRUE);
+        SkpEnableControls(si.MainWindow, FALSE);
         supStatusBarSetText(hwndStatusBar, 0, (LPCWSTR)TEXT("Scan in progress, please wait..."));
 
         szBuffer[0] = 0;
         SkiInitializeAnomalyCount();
 
-        if (si.IsFirstRun == FALSE)
-            ListView_DeleteAllItems(hwndList);
+        ListView_DeleteAllItems(hwndList);
 
         if (gProbeContext) {
             SkDestroyContext(&gProbeContext);
@@ -529,10 +560,9 @@ DWORD SkpProbeThread(
             NULL);
 
         supStatusBarSetText(hwndStatusBar, 0, szBuffer);
-
+        SkpEnableControls(si.MainWindow, TRUE);
+        InterlockedExchange(&gbScanRunning, FALSE);
         ReleaseMutex(gProbeWait);
-        EnableMenuItem(GetMenu(si.MainWindow), ID_PROBES_SAVETOFILE, MF_BYCOMMAND | MF_ENABLED);
-        EnableMenuItem(GetMenu(si.MainWindow), ID_PROBES_SETTINGS, MF_BYCOMMAND | MF_ENABLED);
     }
 
     ExitThread(ERROR_SUCCESS);
@@ -552,22 +582,8 @@ VOID SkStartProbe(
 {
     DWORD threadId;
 
-    if (StartupInfo->IsFirstRun)
-    {
-        if (FAILED(CoInitializeSecurity(NULL,
-            -1,
-            NULL,
-            NULL,
-            RPC_C_AUTHN_LEVEL_DEFAULT,
-            RPC_C_IMP_LEVEL_IMPERSONATE,
-            NULL,
-            EOAC_SECURE_REFS,
-            NULL)))
-        {
-            REPORT_RIP(TEXT("Could not initialize COM security"));
-            return;
-        }
-    }
+    if (!supInitializeSecurityForCOM())
+        return;
 
     HANDLE threadHandle = CreateThread(NULL, 0,
         (LPTHREAD_START_ROUTINE)SkpProbeThread,

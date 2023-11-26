@@ -69,7 +69,6 @@ typedef struct _PROBE_SETTINGS {
 #define PROBE_FLAGS_CHECK_PROCESS_MEMORY        (0x80000)
 
 typedef struct _PROBE_STARTUP_INFO {
-    BOOL IsFirstRun;
     HWND MainWindow;
     PROBE_SETTINGS Settings;
 } PROBE_STARTUP_INFO, * PPROBE_STARTUP_INFO;

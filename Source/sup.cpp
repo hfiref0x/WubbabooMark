@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        01 Jul 2023
+*  DATE:        25 Nov 2023
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -3180,6 +3180,98 @@ VOID supSetWaitCursor(
 {
     ShowCursor(fSet);
     SetCursor(LoadCursor(NULL, fSet ? IDC_WAIT : IDC_ARROW));
+}
+
+/*
+* supShowWelcomeBanner
+*
+* Purpose:
+*
+* Display Skilla version information.
+*
+*/
+VOID supShowWelcomeBanner()
+{
+    WCHAR szText[200];
+
+    LARGE_INTEGER startTime;
+    TIME_FIELDS systemTime;
+
+    GetSystemTimeAsFileTime((LPFILETIME)&startTime);
+    FileTimeToLocalFileTime((PFILETIME)&startTime, (PFILETIME)&startTime);
+    RtlTimeToTimeFields((PLARGE_INTEGER)&startTime, (PTIME_FIELDS)&systemTime);
+
+    StringCchPrintf(szText,
+        RTL_NUMBER_OF(szText),
+        L"%ws v%lu.%lu.%lu, started at %02hd.%02hd.%04hd %02hd:%02hd:%02hd",
+        PROGRAM_NAME,
+        SK_VERSION_MAJOR,
+        SK_VERSION_MINOR,
+        SK_VERSION_BUILD,
+        systemTime.Day,
+        systemTime.Month,
+        systemTime.Year,
+        systemTime.Hour,
+        systemTime.Minute,
+        systemTime.Second);
+
+    supReportEvent(evtInformation,
+        szText,
+        NULL,
+        NULL);
+
+    StringCchPrintf(szText,
+        RTL_NUMBER_OF(szText),
+        L"%ws build at %ws %ws",
+        PROGRAM_NAME,
+        TEXT(__DATE__),
+        TEXT(__TIME__));
+
+    supStatusBarSetText(hwndStatusBar, 0, szText);
+
+    //
+    // Show general usage help.
+    //
+
+    supReportEvent(evtInformation,
+        (LPWSTR)TEXT("Use File->Scan or press F5 to start a scan"),
+        NULL,
+        NULL);
+
+    supReportEvent(evtInformation,
+        (LPWSTR)TEXT("Use Probes->Settings or press F2 to change scan settings"),
+        NULL,
+        NULL);
+}
+
+/*
+* supInitializeSecurityForCOM
+*
+* Purpose:
+*
+* Setup COM security for a process.
+*
+*/
+BOOL supInitializeSecurityForCOM()
+{
+    HRESULT hr = CoInitializeSecurity(NULL,
+        -1,
+        NULL,
+        NULL,
+        RPC_C_AUTHN_LEVEL_DEFAULT,
+        RPC_C_IMP_LEVEL_IMPERSONATE,
+        NULL,
+        EOAC_SECURE_REFS,
+        NULL);
+
+    if (hr != S_OK &&
+        hr != RPC_E_TOO_LATE)
+    {
+        REPORT_RIP(TEXT("Could not initialize COM security"));
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 /*

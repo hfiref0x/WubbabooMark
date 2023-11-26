@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        01 Jul 2023
+*  DATE:        25 Nov 2023
 *
 *  CodeName:    Skilla
 *
@@ -34,6 +34,7 @@ HWND hwndList = NULL;
 HWND hwndStatusBar = NULL;
 HINSTANCE thisInstance = NULL;
 PROBE_STARTUP_INFO gProbeParams;
+volatile LONG gbScanRunning = FALSE;
 
 /*
 * InsertRunAsMainMenuEntry
@@ -143,9 +144,9 @@ VOID SettingsReadWrite(
                 probeSettings.Flags |= ctrlMap[i].FlagValue;
             }
         }
-      
+
         if (!supWriteConfiguration(&probeSettings)) {
-                       
+
             StringCchPrintf(szErrorMsg,
                 RTL_NUMBER_OF(szErrorMsg),
                 TEXT("There is an error with code %lu while saving probes settings"),
@@ -196,6 +197,12 @@ INT_PTR CALLBACK SettingsDialogProc(
             return EndDialog(hwndDlg, ERROR_CANCELLED);
         case IDOK:
             SettingsReadWrite(hwndDlg, TRUE);
+
+            supReportEvent(evtInformation,
+                (LPWSTR)TEXT("Settings has been modified and will be used during next scan"),
+                NULL,
+                NULL);
+
             return EndDialog(hwndDlg, ERROR_SUCCESS);
         }
 
@@ -269,33 +276,56 @@ VOID MainWindowSetViewReady()
         columnData,
         RTL_NUMBER_OF(columnData));
 
-    WCHAR szText[200];
+}
 
-    LARGE_INTEGER startTime;
-    TIME_FIELDS systemTime;
+VOID MainWindowHandleWMCommand(
+    _In_ HWND hwnd,
+    _In_ WPARAM wParam,
+    _In_ LPARAM lParam
+)
+{
+    UNREFERENCED_PARAMETER(lParam);
+    ULONG wId = GET_WM_COMMAND_ID(wParam, lParam);
 
-    GetSystemTimeAsFileTime((LPFILETIME)&startTime);
-    FileTimeToLocalFileTime((PFILETIME)&startTime, (PFILETIME)&startTime);
-    RtlTimeToTimeFields((PLARGE_INTEGER)&startTime, (PTIME_FIELDS)&systemTime);
+    switch (wId) {
+    case ID_FILE_SCAN:
+        gProbeParams.MainWindow = hwnd;
+        supReadConfiguration(&gProbeParams.Settings);
+        SkStartProbe(&gProbeParams);
+        return;
+    case IDCANCEL:
+    case ID_FILE_EXIT:
+        SendMessage(hwnd, WM_CLOSE, 0, 0);
+        return;
+    }
 
-    StringCchPrintf(szText,
-        RTL_NUMBER_OF(szText),
-        L"%ws v%lu.%lu.%lu, started at %02hd.%02hd.%04hd %02hd:%02hd:%02hd",
-        PROGRAM_NAME,
-        SK_VERSION_MAJOR,
-        SK_VERSION_MINOR,
-        SK_VERSION_BUILD,
-        systemTime.Day,
-        systemTime.Month,
-        systemTime.Year,
-        systemTime.Hour,
-        systemTime.Minute,
-        systemTime.Second);
+    if (gbScanRunning != FALSE)
+        return;
 
-    supReportEvent(evtInformation,
-        szText,
-        NULL,
-        NULL);
+    switch (wId) {
+
+    case ID_HELP_ABOUT:
+        DialogBoxParam(thisInstance, MAKEINTRESOURCE(IDD_ABOUT), hwnd, AboutDialogProc, 0);
+        break;
+
+    case ID_HELP_SHOWHELP:
+        ListView_DeleteAllItems(hwndList);
+        supShowWelcomeBanner();
+        break;
+
+    case ID_PROBES_SAVETOFILE:
+        supListViewExportToFile(TEXT("probes.csv"), hwnd, hwndList);
+        break;
+
+    case ID_PROBES_SETTINGS:
+        DialogBoxParam(thisInstance, MAKEINTRESOURCE(IDD_SETTINGS), hwnd, SettingsDialogProc, 0);
+        break;
+
+    case ID_FILE_RUNASADMIN:
+        supRunAsAdmin();
+        break;
+
+    }
 }
 
 LRESULT CALLBACK MainWindowProc(
@@ -340,37 +370,7 @@ LRESULT CALLBACK MainWindowProc(
         break;
 
     case WM_COMMAND:
-        switch (GET_WM_COMMAND_ID(wParam, lParam)) {
-
-        case ID_FILE_SCAN:
-            gProbeParams.IsFirstRun = FALSE;
-            gProbeParams.MainWindow = hwnd;
-            supReadConfiguration(&gProbeParams.Settings);
-            SkStartProbe(&gProbeParams);
-            break;
-
-        case ID_HELP_ABOUT:
-            DialogBoxParam(thisInstance, MAKEINTRESOURCE(IDD_ABOUT), hwnd, AboutDialogProc, 0);
-            break;
-
-        case IDCANCEL:
-        case ID_FILE_EXIT:
-            SendMessage(hwnd, WM_CLOSE, 0, 0);
-            break;
-
-        case ID_PROBES_SAVETOFILE:
-            supListViewExportToFile(TEXT("probes.csv"), hwnd, hwndList);
-            break;
-
-        case ID_PROBES_SETTINGS:
-            DialogBoxParam(thisInstance, MAKEINTRESOURCE(IDD_SETTINGS), hwnd, SettingsDialogProc, 0);
-            break;
-
-        case ID_FILE_RUNASADMIN:
-            supRunAsAdmin();
-            break;
-
-        }
+        MainWindowHandleWMCommand(hwnd, wParam, lParam);
         break;
 
     case WM_ACTIVATE:
@@ -388,9 +388,11 @@ DWORD RunMainDialog()
     WNDCLASSEX wndClass;
     BOOL bResult;
     MSG message;
+    HACCEL acceleratorTable;
     INITCOMMONCONTROLSEX iccx;
 
     thisInstance = GetModuleHandle(NULL);
+    acceleratorTable = LoadAccelerators(thisInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1));
 
     gProbeWait = CreateMutex(NULL, FALSE, NULL);
     if (gProbeWait == NULL)
@@ -448,10 +450,10 @@ DWORD RunMainDialog()
         UpdateWindow(hwndMain);
         InsertRunAsMainMenuEntry(hwndMain);
 
-        gProbeParams.IsFirstRun = TRUE;
+        supShowWelcomeBanner();
+
         gProbeParams.MainWindow = hwndMain;
         supReadConfiguration(&gProbeParams.Settings);
-        SkStartProbe(&gProbeParams);
 
         do {
 
@@ -463,6 +465,9 @@ DWORD RunMainDialog()
                 TranslateMessage(&message);
                 DispatchMessage(&message);
             }
+            else {
+                TranslateAccelerator(hwndMain, acceleratorTable, &message);
+            }
 
         } while (bResult != 0);
 
@@ -470,6 +475,9 @@ DWORD RunMainDialog()
     else {
         return GetLastError();
     }
+
+    if (acceleratorTable)
+        DestroyAcceleratorTable(acceleratorTable);
 
     UnregisterClass(CLASSNAME, thisInstance);
 
@@ -484,7 +492,7 @@ INT EntryPoint()
     RtlSetUnhandledExceptionFilter(supUnhandledExceptionFilter);
     HeapSetInformation(NtCurrentPeb()->ProcessHeap, HeapEnableTerminationOnCorruption, NULL, 0);
     supSetMitigationPolicies();
-    supCacheKnownDllsEntries();       
+    supCacheKnownDllsEntries();
     ntStatus = supInitializeKnownSids();
     if (!NT_SUCCESS(ntStatus)) {
         exitProcessCode = ntStatus;

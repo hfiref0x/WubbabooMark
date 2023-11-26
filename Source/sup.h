@@ -247,6 +247,9 @@ VOID supReportEvent(
     _In_opt_ LPWSTR lpDescription,
     _In_opt_ LPWSTR lpAnomalyType);
 
+VOID supShowWelcomeBanner();
+BOOL supInitializeSecurityForCOM();
+
 #define REPORT_TEST_PASSED(TestType) supReportEvent(evtInformation, (LPWSTR)TestType, (LPWSTR)TEXT("PASSED"), NULL)
 #define REPORT_TEST_SKIPPED(Text) supReportEvent(evtWarning, (LPWSTR)Text, (LPWSTR)TEXT("SKIPPED"), NULL)
 #define REPORT_RIP(RipText) supReportEvent(evtError, (LPWSTR)RipText, (LPWSTR)TEXT("FAILURE"), NULL)

@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        30 Jun 2023
+*  DATE:        25 Nov 2023
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -356,7 +356,7 @@ DWORD SkpProbeThread(
         // Run common tests.
         //
         if (gProbeContext->Settings.CommonChecks) {
-            if (SkQuerySafePolicy())
+            if (SkIsCustomKernelSignersPolicyEnabled())
                 REPORT_TEST_PASSED(TEXT("Testing->Unsafe CI Policy"));
             if (SkCheckSystemDebugControl())
                 REPORT_TEST_PASSED(TEXT("Testing->System Debug Control"));

@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        01 Jul 2023
+*  DATE:        25 Nov 2023
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -340,6 +340,7 @@ BOOL SkTestSyscalls(
 {
     BOOL bSyscallSet = FALSE;
     PVOID imageBase = Context->NtDllBase;
+    LPCSTR lpTemplateSyscall;
     NTSTATUS ntStatus, ntStatusNormal;
     ULONG i, oldCount = SkiGetAnomalyCount();
     ULONG length, size;
@@ -355,7 +356,8 @@ BOOL SkTestSyscalls(
     //
     // Set syscall instruction address for indirect calls.
     //
-    bSyscallSet = SkiSetSyscallAddress(imageBase, "NtAccessCheck");
+    lpTemplateSyscall = g_NtSyscallTemplates[__rdtsc() % RTL_NUMBER_OF(g_NtSyscallTemplates)];
+    bSyscallSet = SkiSetSyscallAddress(imageBase, lpTemplateSyscall);
 
     for (i = 0; i < RTL_NUMBER_OF(g_NtTestSet); i++) {
         

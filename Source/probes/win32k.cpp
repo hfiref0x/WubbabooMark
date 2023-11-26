@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        01 Jul 2023
+*  DATE:        25 Nov 2023
 *
 *  NtUser/NtGdi probes (Windows 10 RS4 and above ONLY).
 *
@@ -24,11 +24,17 @@ PSERVERINFO gpsi;
 PSHAREDINFO gSharedInfo;
 PGDI_SHARED_MEMORY pGdiSharedMemory;
 
-#define SkpWin32RIP()                                               \
-    supReportEvent(evtError,                                        \
-        (LPWSTR)TEXT("NTUSER/NTGDI internal information failure"),  \
-        NULL,                                                       \
-        DT_W32INIT_ERROR)                                           \
+#define SkpWin32RIP()                 \
+    supReportEvent(evtError,          \
+        DT_NTUSER_INTERNAL_ERROR,     \
+        DT_UNEXPECTED_BEHAVIOUR,      \
+        DT_W32INIT_ERROR)             \
+
+#define SkpWin32ExceptionRIP(Type)    \
+    supReportEvent(evtError,          \
+        Type,                         \
+        DT_UNEXPECTED_BEHAVIOUR,      \
+        DT_EXCEPTION)       
 
 PWND HMValidateHandleNoSecure(
     _In_opt_ HWND hwnd,
@@ -143,8 +149,8 @@ BOOL SkiWin32Initialize()
     HMODULE hUser32;
     HMODULE hGdi32;
 
-    if (gFirstRun || 
-        gSharedInfo == NULL) 
+    if (gFirstRun ||
+        gSharedInfo == NULL)
     {
         hUser32 = GetModuleHandle(TEXT("user32.dll"));
         if (hUser32 == NULL)
@@ -184,14 +190,14 @@ BOOL SkUserHandleTableWalk(
     PVOID processList = NULL;
     PSYSTEM_PROCESS_INFORMATION pEntry;
 
-    do {
+    __try {
 
         //
         // Execute any tests only after this call.
         //
         if (!SkiWin32Initialize()) {
             SkpWin32RIP();
-            return FALSE;
+            __leave;
         }
 
         //
@@ -209,7 +215,7 @@ BOOL SkUserHandleTableWalk(
                 (LPWSTR)TEXT("NtQuerySystemInformation"),
                 (LPWSTR)TEXT("SystemProcessInformation"));
 
-            break;
+            __leave;
         }
 
         //
@@ -251,9 +257,17 @@ BOOL SkUserHandleTableWalk(
             }
         }
 
-    } while (FALSE);
+    }
+    __finally {
 
-    if (processList) supHeapFree(processList);
+        if (AbnormalTermination()) {
+            SkpWin32ExceptionRIP(DT_NTUSER_INTERNAL_ERROR);
+            return FALSE;
+        }
+
+        if (processList) supHeapFree(processList);
+    }
+
 
     return (SkiGetAnomalyCount() == oldAnomalyCount);
 }
@@ -277,72 +291,80 @@ BOOL SkGdiSharedHandleTableWalk(
     MEMORY_BASIC_INFORMATION mbi;
     PVOID processList = NULL;
 
-    //
-    // Execute any tests only after this call.
-    //
-    if (!SkiWin32Initialize()) {
-        SkpWin32RIP();
-        return FALSE;
-    }
-
-    //
-    // Prepare process list enumeration.
-    //
-    processList = supGetSystemInfo(SystemProcessInformation, NULL);
-    if (processList == NULL) {
-
-        SkReportNtCallRIP(STATUS_UNSUCCESSFUL,
-            (LPWSTR)TEXT("Cannot query process list"),
-            (LPWSTR)TEXT("NtQuerySystemInformation"),
-            (LPWSTR)TEXT("SystemProcessInformation"));
-
-        return FALSE;
-    }
-
-    if (NT_SUCCESS(NtQueryVirtualMemory(NtCurrentProcess(),
-        pGdiSharedMemory,
-        MemoryBasicInformation,
-        &mbi,
-        sizeof(mbi),
-        &returnLength)))
-    {
-        //
-        // Apprx. number of entries.
-        // Warning shared memory contain more data than just handle table.
-        //
-        cEntries = mbi.RegionSize / sizeof(GDI_HANDLE_ENTRY);
-        cEntries = __min(GDI_MAX_HANDLE_COUNT, cEntries);
-    }
-    else {
-        cEntries = GDI_MAX_HANDLE_COUNT;
-    }
-    
-    for (i = 0; i < cEntries; i++) {
-
-        pentry = &pGdiSharedMemory->aentryHmgr[i];
-        
-        ULONG ownerPID = OBJECTOWNER_PID(pentry->ObjectOwner);
-        OBJTYPE objType = pentry->Objt;
+    __try {
 
         //
-        // Filter OBJECT_OWNER_*
+        // Execute any tests only after this call.
         //
-        if (ownerPID != OBJECT_OWNER_PUBLIC &&
-            ownerPID != OBJECT_OWNER_CURRENT &&
-            ownerPID != OBJECT_OWNER_NONE &&
-            ownerPID != OBJECT_OWNER_ERROR)
-        {
-            //
-            // Check if owner pid is visible to client enumeration.
-            //
-            if (NULL == supProcessEntryByProcessId(UlongToHandle(ownerPID), processList)) {
-                SkReportGdiObject(UlongToHandle(ownerPID), objType);
-            }
+        if (!SkiWin32Initialize()) {
+            SkpWin32RIP();
+            __leave;
         }
 
-    }
+        //
+        // Prepare process list enumeration.
+        //
+        processList = supGetSystemInfo(SystemProcessInformation, NULL);
+        if (processList == NULL) {
 
-    supHeapFree(processList);
+            SkReportNtCallRIP(STATUS_UNSUCCESSFUL,
+                (LPWSTR)TEXT("Cannot query process list"),
+                (LPWSTR)TEXT("NtQuerySystemInformation"),
+                (LPWSTR)TEXT("SystemProcessInformation"));
+
+            __leave;
+        }
+
+        if (NT_SUCCESS(NtQueryVirtualMemory(NtCurrentProcess(),
+            pGdiSharedMemory,
+            MemoryBasicInformation,
+            &mbi,
+            sizeof(mbi),
+            &returnLength)))
+        {
+            //
+            // Apprx. number of entries.
+            // Warning shared memory contain more data than just handle table.
+            //
+            cEntries = mbi.RegionSize / sizeof(GDI_HANDLE_ENTRY);
+            cEntries = __min(GDI_MAX_HANDLE_COUNT, cEntries);
+        }
+        else {
+            cEntries = GDI_MAX_HANDLE_COUNT;
+        }
+
+        for (i = 0; i < cEntries; i++) {
+
+            pentry = &pGdiSharedMemory->aentryHmgr[i];
+
+            ULONG ownerPID = OBJECTOWNER_PID(pentry->ObjectOwner);
+            OBJTYPE objType = pentry->Objt;
+
+            //
+            // Filter OBJECT_OWNER_*
+            //
+            if (ownerPID != OBJECT_OWNER_PUBLIC &&
+                ownerPID != OBJECT_OWNER_CURRENT &&
+                ownerPID != OBJECT_OWNER_NONE &&
+                ownerPID != OBJECT_OWNER_ERROR)
+            {
+                //
+                // Check if owner pid is visible to client enumeration.
+                //
+                if (NULL == supProcessEntryByProcessId(UlongToHandle(ownerPID), processList)) {
+                    SkReportGdiObject(UlongToHandle(ownerPID), objType);
+                }
+            }
+
+        }
+    }
+    __finally {
+        if (AbnormalTermination()) {
+            SkpWin32ExceptionRIP(DT_NTGDI_INTERNAL_ERROR);
+            return FALSE;
+        }
+        supHeapFree(processList);
+    }
 
     return (SkiGetAnomalyCount() == oldAnomalyCount);
 }
@@ -362,10 +384,10 @@ BOOL SkValidateWin32uSyscalls(
     PVOID win32uBase = GetModuleHandle(TEXT("win32u.dll"));
     if (win32uBase) {
         for (ULONG i = 0; i < RTL_NUMBER_OF(g_NtUserTestSet); i++)
-            SkiQueryAndValidateSSN(Context, 
-                g_NtUserTestSet[i], 
-                win32uBase, 
-                FALSE, 
+            SkiQueryAndValidateSSN(Context,
+                g_NtUserTestSet[i],
+                win32uBase,
+                FALSE,
                 TRUE);
     }
     return (SkiGetAnomalyCount() == oldAnomalyCount);

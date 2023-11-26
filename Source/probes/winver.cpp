@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        01 Jul 2023
+*  DATE:        25 Nov 2023
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -413,7 +413,7 @@ BOOL SkVerifyWinVersion(
                         }
                         else {
                             buildNumberMin = NT_WIN11_21H2;
-                            buildNumberMax = NTX_WIN11_ADB;
+                            buildNumberMax = NT_WIN11_24H2;
                         }
                     }
                     else {

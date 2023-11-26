@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        30 Jun 2023
+*  DATE:        25 Nov 2023
 *
 *  Global consts definition file.
 *
@@ -75,6 +75,10 @@
 #define DT_BCDMISMATCH (LPWSTR)TEXT("BCD Mismatch")
 
 #define DT_W32INIT_ERROR (LPWSTR)TEXT("Win32 Init Failed")
+#define DT_EXCEPTION (LPWSTR)TEXT("Program Exception")
+#define DT_UNEXPECTED_BEHAVIOUR (LPWSTR)TEXT("Unexpected behaviour")
+#define DT_NTUSER_INTERNAL_ERROR (LPWSTR)TEXT("NTUSER internal information parsing failed")
+#define DT_NTGDI_INTERNAL_ERROR (LPWSTR)TEXT("NTGDI internal information parsing failed")
 
 #define T_CSV_FILE_FILTER TEXT("CSV Files\0*.csv\0\0")
 
@@ -113,4 +117,14 @@ static LPCSTR g_NtUserTestSet[] = {
     "NtUserBuildHwndList",
     "NtUserFindWindowEx",
     "NtUserBlockInput"
+};
+
+static LPCSTR g_NtSyscallTemplates[] = {
+    "NtAccessCheck",
+    "NtAddAtom",
+    "NtAlpcCreatePort",
+    "NtCreateLowBoxToken",
+    "NtCreateResourceManager",
+    "NtFilterToken",
+    "NtSetEaFile"
 };

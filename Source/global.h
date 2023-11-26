@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        11 Jun 2023
+*  DATE:        25 Nov 2023
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -107,7 +107,7 @@ extern "C" {
 #define PROGRAM_NAME L"WubbabooMark"
 #define SK_VERSION_MAJOR 1
 #define SK_VERSION_MINOR 0
-#define SK_VERSION_BUILD 2307 
+#define SK_VERSION_BUILD 2311 
 
 #define PUSH_DISABLE_WARNING(Warning) \
   __pragma(warning(push)) \

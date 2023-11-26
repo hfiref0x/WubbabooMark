@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.00
 *
-*  DATE:        30 Jun 2023
+*  DATE:        25 Nov 2023
 *
 *  Common probes.
 *
@@ -20,14 +20,14 @@
 #include "global.h"
 
 /*
-* SkQuerySafePolicy
+* SkIsCustomKernelSignersPolicyEnabled
 *
 * Purpose:
 *
 * Check for custom kernel signers policy enabled.
 *
 */
-BOOL SkQuerySafePolicy()
+BOOL SkIsCustomKernelSignersPolicyEnabled()
 {
     BOOLEAN bAllowed = FALSE;
     NTSTATUS ntStatus;
@@ -112,8 +112,8 @@ BOOL SkCheckDebugPrivileges()
         if (NT_SUCCESS(ntStatus)) {
             if (bEnabled) {
                 supReportEvent(evtDetection,
-                    (LPWSTR)TEXT("DebugPrivileges are enabled for client"),
-                    NULL,
+                    (LPWSTR)TEXT("Debug Privileges are enabled for client"),
+                    (LPWSTR)TEXT("NtPrivilegeCheck"),
                     DT_PRIVILEGES);
 
                 return FALSE;

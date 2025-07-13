@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       GLOBAL.H
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        25 Nov 2023
+*  DATE:        11 Jul 2025
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -107,8 +107,8 @@ extern "C" {
 
 #define PROGRAM_NAME L"WubbabooMark"
 #define SK_VERSION_MAJOR 1
-#define SK_VERSION_MINOR 0
-#define SK_VERSION_BUILD 2311 
+#define SK_VERSION_MINOR 1
+#define SK_VERSION_BUILD 2507 
 
 #define PUSH_DISABLE_WARNING(Warning) \
   __pragma(warning(push)) \

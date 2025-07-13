@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       BOOTCFG.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        01 Jul 2023
+*  DATE:        11 Jul 2025
 *
 *  Boot configuration probes.
 *  Elevation required.
@@ -356,6 +356,8 @@ HRESULT BcdOpenDefaultOsLoader(
 
     if (FAILED(hr))
         return hr;
+    if (pInParamsObj == NULL)
+        return E_FAIL;
 
     if (BcdSetStringArgument(pInParamsObj,
         (LPWSTR)TEXT("Id"),
@@ -416,7 +418,7 @@ HRESULT BcdOpenDefaultStore(
     if (FAILED(hr))
         return hr;
 
-    if (pObjectClass == NULL)
+    if (pObjectClass == NULL || pInParamsObj)
         return E_FAIL;
 
     if (BcdSetStringArgument(pInParamsObj,

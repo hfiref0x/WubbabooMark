@@ -1,12 +1,12 @@
 ﻿/*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       PROBES.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        25 Nov 2023
+*  DATE:        11 Jul 2025
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -245,11 +245,17 @@ PPROBE_CONTEXT SkCreateContext(
     }
 
     RtlSecureZeroMemory(szBuffer, sizeof(szBuffer));
-    _strcpy(szBuffer, USER_SHARED_DATA->NtSystemRoot);
-    _strcat(szBuffer, TEXT("\\system32\\wintrust.dll"));
+    StringCchPrintf(szBuffer, RTL_NUMBER_OF(szBuffer), TEXT("%ws\\system32\\wintrust.dll"),
+        USER_SHARED_DATA->NtSystemRoot);
     hModule = LoadLibraryEx(szBuffer, NULL, 0);
     if (hModule != NULL) {
         ctx->WTGetSignatureInfo = (ptrWTGetSignatureInfo)GetProcAddress(hModule, "WTGetSignatureInfo");
+    }
+    else {
+        SkReportNtCallRIP(ntStatus,
+            (LPWSTR)TEXT("Failed to load wintrust.dll"),
+            (LPWSTR)__FUNCTIONW__,
+            NULL);
     }
 
     ctx->Settings.Flags = Settings->Flags;

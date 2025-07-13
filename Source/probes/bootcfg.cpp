@@ -20,19 +20,21 @@
 
 #include "global.h"
 
-#define	BcdLibraryBoolean_DebuggerEnabled            0x16000010
-#define BcdLibraryBoolean_DisableIntegrityChecks     0x16000048
-#define	BcdLibraryBoolean_AllowPrereleaseSignatures  0x16000049
-#define BcdOSLoaderBoolean_WinPEMode                 0x26000022
-#define	BcdOSLoaderBoolean_AllowPrereleaseSignatures 0x26000027
-#define BcdOSLoaderBoolean_KernelDebuggerEnabled     0x260000a0
+#define	BcdLibraryBoolean_DebuggerEnabled               0x16000010
+#define BcdLibraryBoolean_DisableIntegrityChecks        0x16000048
+#define	BcdLibraryBoolean_AllowPrereleaseSignatures     0x16000049
+#define BcdOSLoaderBoolean_WinPEMode                    0x26000022
+#define BcdOSLoaderBoolean_DisableCodeIntegrityChecks   0x26000026
+#define	BcdOSLoaderBoolean_AllowPrereleaseSignatures    0x26000027
+#define BcdOSLoaderBoolean_KernelDebuggerEnabled        0x260000a0
 
-#define BCDPROBE_LIB_KDBG   0
-#define BCDPROBE_LIB_NOIC   1
-#define BCDPROBE_LIB_TEST   2
-#define BCDPROBE_LDR_WINPE  3
-#define BCDPROBE_LDR_TEST   4
-#define BCDPROBE_LDR_KDBG   5
+#define BCDPROBE_LIB_KDBG       0
+#define BCDPROBE_LIB_NOIC       1
+#define BCDPROBE_LIB_TEST       2
+#define BCDPROBE_LDR_WINPE      3
+#define BCDPROBE_LDR_TEST       4
+#define BCDPROBE_LDR_KDBG       5
+#define BCDPROBE_LDR_DCI        6
 
 typedef struct _BCD_PROBE {
     ULONG ProbeValue;
@@ -47,6 +49,7 @@ BCD_PROBE bcdProbes[] = {
     { BcdOSLoaderBoolean_WinPEMode, ERROR_NOT_FOUND, (LPWSTR)TEXT("WinPEMode") },
     { BcdOSLoaderBoolean_AllowPrereleaseSignatures, ERROR_NOT_FOUND, (LPWSTR)TEXT("TestModeEnabled") },
     { BcdOSLoaderBoolean_KernelDebuggerEnabled, ERROR_NOT_FOUND, (LPWSTR)TEXT("KernelDebuggerEnabled") },
+    { BcdOSLoaderBoolean_DisableCodeIntegrityChecks, ERROR_NOT_FOUND, (LPWSTR)TEXT("DisableCodeIntegrityChecks") }
 };
 
 #define GUID_CURRENT_BOOT_ENTRY TEXT("{FA926493-6F1C-4193-A414-58F0B2456D1E}")
@@ -187,7 +190,7 @@ HRESULT BcdGetObjectFromArgs(
     VARIANT	var;
     CIMTYPE	vt_type;
 
-    *Result = FALSE;
+    *Result = NULL;
 
     VariantInit(&var);
     var.vt = VT_UNKNOWN;
@@ -222,6 +225,9 @@ HRESULT BcdMethodCall(
     BOOL bResult = FALSE;
     HRESULT hr;
     VARIANT var;
+
+    if (WbemServices == NULL || ObjectInstance == NULL)
+        return E_FAIL;
 
     VariantInit(&var);
 
@@ -418,7 +424,7 @@ HRESULT BcdOpenDefaultStore(
     if (FAILED(hr))
         return hr;
 
-    if (pObjectClass == NULL || pInParamsObj)
+    if (pObjectClass == NULL || pInParamsObj == NULL)
         return E_FAIL;
 
     if (BcdSetStringArgument(pInParamsObj,
@@ -580,6 +586,7 @@ VOID SkiBcdValidate(
 
     //
     // TEST MODE? SURE NOT.
+    // Note: this is only checked if Native API reports TestMode as "disabled" which maybe fake.
     //
     if (ReportedTestMode == FALSE) {
 
@@ -603,6 +610,8 @@ VOID SkiBcdValidate(
     //
     // CODEINTEGRITY? ALWAYS ENABLED.
     //
+    // Note: this is only checked if Native API reports CI as "enabled" which maybe fake.
+    //
     if (ReportedCiEnabled) {
         if (bcdProbes[BCDPROBE_LDR_WINPE].ProbeResult > 0 &&
             bcdProbes[BCDPROBE_LDR_WINPE].ProbeResult != ERROR_NOT_FOUND)
@@ -619,6 +628,14 @@ VOID SkiBcdValidate(
                 bcdProbes[BCDPROBE_LIB_NOIC].Description,
                 bcdProbes[BCDPROBE_LIB_NOIC].ProbeValue);
         }
+
+        if (bcdProbes[BCDPROBE_LDR_DCI].ProbeResult > 0 &&
+            bcdProbes[BCDPROBE_LDR_DCI].ProbeResult != ERROR_NOT_FOUND) {
+
+            SkReportBcdProbeMismatch(ReportedCiEnabled,
+                bcdProbes[BCDPROBE_LDR_DCI].Description,
+                bcdProbes[BCDPROBE_LDR_DCI].ProbeValue);
+        }
     }
 
     //
@@ -632,6 +649,9 @@ VOID SkiBcdValidate(
 
     if (NT_SUCCESS(ntStatus))
     {
+        //
+        // Only checked if Native API reports debugger as disabled.
+        //
         if (skdi.DebuggerEnabled == FALSE) {
             if (bcdProbes[BCDPROBE_LDR_KDBG].ProbeResult > 0 &&
                 bcdProbes[BCDPROBE_LDR_KDBG].ProbeResult != ERROR_NOT_FOUND)

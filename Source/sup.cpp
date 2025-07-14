@@ -1293,6 +1293,9 @@ ULONG supExtractSSN(
 {
     PFEFN pfnRoutine;
 
+    if (ImageBase == NULL)
+        return INVALID_SYSCALL_ID;
+
     switch (Method) {
 
     case SsnInstructionScan:

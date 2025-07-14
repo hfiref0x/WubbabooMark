@@ -64,6 +64,8 @@
 
 #define DT_DRIVER_DEVICE (LPWSTR)TEXT("Driver Device")
 
+#define DT_HANDLE_MANIPULATION (LPWSTR)TEXT("Handle")
+
 #define DT_DEBUGGER_TFLAG_RDTSC (LPWSTR)TEXT("TF RDTSC")
 #define DT_DEBUGGER_DRX (LPWSTR)TEXT("Debug Registers")
 

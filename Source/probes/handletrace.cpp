@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       HANDLETRACE.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        01 Jul 2023
+*  DATE:        11 Jul 2025
 *
 *  Trace handler probe.
 *
@@ -150,6 +150,65 @@ VOID TraceSectionHandle(
     NtClose(fileHandle);
 }
 
+BOOL DetectHandleHijacking()
+{
+    NTSTATUS ntStatus;
+    HANDLE processHandle = NULL;
+    HANDLE duplicateHandle = NULL;
+    OBJECT_ATTRIBUTES obja;
+    CLIENT_ID clientId;
+    BOOL result = FALSE;
+    PROCESS_BASIC_INFORMATION pbi;
+    ULONG returnLength = 0;
+
+    InitializeObjectAttributes(&obja, NULL, 0, NULL, NULL);
+
+    ntStatus = NtQueryInformationProcess(NtCurrentProcess(),
+        ProcessBasicInformation,
+        &pbi,
+        sizeof(pbi),
+        &returnLength);
+
+    if (NT_SUCCESS(ntStatus)) {
+        clientId.UniqueProcess = (HANDLE)pbi.InheritedFromUniqueProcessId;
+        clientId.UniqueThread = NULL;
+
+        ntStatus = NtOpenProcess(&processHandle,
+            PROCESS_DUP_HANDLE,
+            &obja,
+            &clientId);
+
+        if (NT_SUCCESS(ntStatus)) {
+            __try {
+                ntStatus = NtDuplicateObject(
+                    processHandle,
+                    UlongToHandle(0xDEADC0DE),
+                    NtCurrentProcess(),
+                    &duplicateHandle,
+                    0,
+                    0,
+                    0);
+
+                if (ntStatus != STATUS_INVALID_HANDLE) {
+                    result = TRUE;
+                    SkiIncreaseAnomalyCount();
+                    supReportEvent(evtDetection,
+                        (LPWSTR)TEXT("Handle duplication anomaly detected"),
+                        (LPWSTR)TEXT("NtDuplicateObject"),
+                        DT_HANDLE_MANIPULATION);
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                // do nothing
+            }
+
+            NtClose(processHandle);
+        }
+    }
+
+    return result;
+}
+
 /*
 * SkHandleTracing
 *
@@ -185,6 +244,8 @@ BOOL SkHandleTracing(
         TraceSectionHandle(Context, pvModules);
         supHeapFree(pvModules);
     }
+
+    DetectHandleHijacking();
 
     //
     // Handle tracing will also raise exceptions on invalid handles.

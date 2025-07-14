@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       PROCESSES.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        01 Jul 2023
+*  DATE:        11 Jul 2025
 *
 *  Process list probes.
 *
@@ -293,12 +293,12 @@ VOID SkiCheckAppCompat(
                         pp = p;
                     }
                 }
-
-                RtlInitUnicodeString(&usProcName, pp);
-                SkCheckBadProcess(pAppCompatExe->dwParentProcessId,
-                    &usProcName,
-                    ScanTypeAppCompat);
-
+                if (pp) {
+                    RtlInitUnicodeString(&usProcName, pp);
+                    SkCheckBadProcess(pAppCompatExe->dwParentProcessId,
+                        &usProcName,
+                        ScanTypeAppCompat);
+                }
                 SkIsParentProcessExist(ProcessList,
                     UlongToHandle(pAppCompatExe->dwParentProcessId),
                     pp);

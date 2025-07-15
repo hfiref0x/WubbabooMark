@@ -1956,6 +1956,158 @@ BOOL supSignerIsMsft(
 }
 
 /*
+* supxVerifyCatalogSignature
+*
+* Purpose:
+*
+* Verify if file is signed via catalog file rather than embedded signature.
+*
+*/
+NTSTATUS supxVerifyCatalogSignature(
+    _In_ HANDLE hFile,
+    _Out_ PBOOL pbCatalogSigned
+)
+{
+    NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
+    HANDLE hCatAdmin = NULL;
+    HANDLE hCatInfo = NULL;
+    CATALOG_INFO catalogInfo;
+    BYTE hash[20];
+    DWORD hashSize = sizeof(hash);
+
+    *pbCatalogSigned = FALSE;
+
+    if (!CryptCATAdminAcquireContext(&hCatAdmin, NULL, 0))
+        return STATUS_INVALID_PARAMETER;
+
+    do {
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile,
+            &hashSize,
+            hash,
+            0))
+        {
+            break;
+        }
+
+        hCatInfo = CryptCATAdminEnumCatalogFromHash(
+            hCatAdmin,
+            hash,
+            hashSize,
+            0,
+            NULL);
+
+        if (hCatInfo) {
+            RtlZeroMemory(&catalogInfo, sizeof(CATALOG_INFO));
+            catalogInfo.cbStruct = sizeof(CATALOG_INFO);
+
+            if (CryptCATCatalogInfoFromContext(hCatInfo, &catalogInfo, 0)) {
+                *pbCatalogSigned = TRUE;
+                ntStatus = STATUS_SUCCESS;
+            }
+
+            CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+        }
+        else {
+            ntStatus = STATUS_SUCCESS;
+        }
+    } while (FALSE);
+
+    if (hCatAdmin)
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+
+    return ntStatus;
+}
+
+/*
+* supxVerifySignatureAlgorithmStrength
+*
+* Purpose:
+*
+* Verify that the signature uses sufficiently strong cryptographic algorithms.
+*
+*/
+NTSTATUS supxVerifySignatureAlgorithmStrength(
+    _In_ LPCWSTR lpFileName,
+    _Out_ PBOOL pbStrongAlgorithm
+)
+{
+    NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
+    HCERTSTORE hStore = NULL;
+    HCRYPTMSG hMsg = NULL;
+    DWORD dwEncoding, dwContentType, dwFormatType;
+    DWORD dwSignerInfo = 0;
+    PCMSG_SIGNER_INFO pSignerInfo = NULL;
+    CRYPT_ALGORITHM_IDENTIFIER* pAlgId;
+
+    *pbStrongAlgorithm = FALSE;
+
+    if (!CryptQueryObject(
+        CERT_QUERY_OBJECT_FILE,
+        lpFileName,
+        CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
+        CERT_QUERY_FORMAT_FLAG_BINARY,
+        0,
+        &dwEncoding,
+        &dwContentType,
+        &dwFormatType,
+        &hStore,
+        &hMsg,
+        NULL))
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    do {
+        if (!CryptMsgGetParam(
+            hMsg,
+            CMSG_SIGNER_INFO_PARAM,
+            0,
+            NULL,
+            &dwSignerInfo))
+        {
+            break;
+        }
+
+        pSignerInfo = (PCMSG_SIGNER_INFO)supHeapAlloc(dwSignerInfo);
+        if (!pSignerInfo) {
+            break;
+        }
+
+        if (!CryptMsgGetParam(
+            hMsg,
+            CMSG_SIGNER_INFO_PARAM,
+            0,
+            (PVOID)pSignerInfo,
+            &dwSignerInfo))
+        {
+            break;
+        }
+
+        pAlgId = &pSignerInfo->HashAlgorithm;
+
+        if (_strcmp_a(pAlgId->pszObjId, szOID_OIWSEC_sha1) == 0 ||
+            _strcmp_a(pAlgId->pszObjId, szOID_RSA_MD5) == 0)
+        {
+            *pbStrongAlgorithm = FALSE;
+        }
+        else if (_strcmp_a(pAlgId->pszObjId, szOID_NIST_sha256) == 0 ||
+            _strcmp_a(pAlgId->pszObjId, szOID_NIST_sha384) == 0 ||
+            _strcmp_a(pAlgId->pszObjId, szOID_NIST_sha512) == 0)
+        {
+            *pbStrongAlgorithm = TRUE;
+        }
+
+        ntStatus = STATUS_SUCCESS;
+    } while (FALSE);
+
+    if (pSignerInfo) supHeapFree(pSignerInfo);
+    if (hStore) CertCloseStore(hStore, 0);
+    if (hMsg) CryptMsgClose(hMsg);
+
+    return ntStatus;
+}
+
+/*
 * supxGetSignatureTimestamp
 *
 * Purpose:
@@ -2036,6 +2188,95 @@ BOOL supxVerifyCertificateValidAtSigningTime(
 }
 
 /*
+* supxVerifyCatalogTrust
+*
+* Purpose:
+*
+* Locate the catalog file, verify the catalog signature,
+* and check if the file hash is present in the catalog.
+*/
+NTSTATUS supxVerifyCatalogTrust(
+    _In_ HANDLE hFile
+)
+{
+    NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
+    HANDLE hCatAdmin = NULL;
+    HANDLE hCatInfo = NULL;
+    BYTE hash[20];
+    DWORD hashSize = sizeof(hash);
+    CATALOG_INFO catalogInfo;
+    GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    WINTRUST_CATALOG_INFO catWintrust;
+    WINTRUST_DATA wintrustData;
+    LONG wintrustResult = ERROR_GEN_FAILURE;
+
+    RtlZeroMemory(&catalogInfo, sizeof(CATALOG_INFO));
+    RtlZeroMemory(&catWintrust, sizeof(WINTRUST_CATALOG_INFO));
+    RtlZeroMemory(&wintrustData, sizeof(WINTRUST_DATA));
+    catalogInfo.cbStruct = sizeof(CATALOG_INFO);
+
+    if (!CryptCATAdminAcquireContext(&hCatAdmin, NULL, 0))
+        return STATUS_INVALID_PARAMETER;
+
+    do {
+        //
+        // 1. Calculate hash of the file.
+        //
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, hash, 0))
+            break;
+
+        //
+        // 2. Locate the catalog file containing this hash.
+        //
+        hCatInfo = CryptCATAdminEnumCatalogFromHash(
+            hCatAdmin,
+            hash,
+            hashSize,
+            0,
+            NULL);
+
+        if (!hCatInfo)
+            break;
+
+        if (!CryptCATCatalogInfoFromContext(hCatInfo, &catalogInfo, 0))
+            break;
+
+        //
+        // 3. Verify the catalog file's signature.
+        //
+        catWintrust.cbStruct = sizeof(WINTRUST_CATALOG_INFO);
+        catWintrust.pcwszCatalogFilePath = catalogInfo.wszCatalogFile;
+        catWintrust.pbCalculatedFileHash = hash;
+        catWintrust.cbCalculatedFileHash = hashSize;
+        catWintrust.pcwszMemberTag = NULL;
+        catWintrust.pcwszMemberFilePath = NULL;
+
+        wintrustData.cbStruct = sizeof(WINTRUST_DATA);
+        wintrustData.dwUIChoice = WTD_UI_NONE;
+        wintrustData.fdwRevocationChecks = WTD_REVOKE_WHOLECHAIN;
+        wintrustData.dwUnionChoice = WTD_CHOICE_CATALOG;
+        wintrustData.pCatalog = &catWintrust;
+        wintrustData.dwStateAction = 0;
+        wintrustData.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL;
+        wintrustData.hWVTStateData = NULL;
+        wintrustData.pPolicyCallbackData = NULL;
+        wintrustData.pSIPClientData = NULL;
+
+        wintrustResult = WinVerifyTrust(NULL, &guidAction, &wintrustData);
+        if (wintrustResult == ERROR_SUCCESS)
+            ntStatus = STATUS_SUCCESS;
+
+    } while (FALSE);
+
+    if (hCatInfo)
+        CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+    if (hCatAdmin)
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+
+    return ntStatus;
+}
+
+/*
 * supVerifyFileSignature
 *
 * Purpose:
@@ -2050,7 +2291,7 @@ NTSTATUS supVerifyFileSignature(
     _In_ ptrWTGetSignatureInfo pWTGetSignatureInfo
 )
 {
-    BOOL bValid = FALSE, bTrustedFileOwner = FALSE;
+    BOOL bValid = FALSE, bTrustedFileOwner = FALSE, bStrongAlgorithm = FALSE, bCatalogSigned = FALSE;
     NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
     HANDLE hFile = NULL;
     OBJECT_ATTRIBUTES attr;
@@ -2111,10 +2352,35 @@ NTSTATUS supVerifyFileSignature(
             NULL,
             &hWVTStateData);
 
-        NtClose(hFile);
-
         if (!NT_SUCCESS(ntStatus))
             break;
+
+        //
+        // Check if the file is catalog-signed.
+        //
+        ntStatus = supxVerifyCatalogSignature(hFile, &bCatalogSigned);
+        if (NT_SUCCESS(ntStatus) && bCatalogSigned) {
+            ntStatus = supxVerifyCatalogTrust(hFile);
+            if (!NT_SUCCESS(ntStatus)) {
+                break;
+            }
+        }
+
+        //
+        // Verify signature algorithm strength.
+        //
+        ntStatus = supxVerifySignatureAlgorithmStrength(lpFileName, &bStrongAlgorithm);
+        if (!NT_SUCCESS(ntStatus)) {
+            bStrongAlgorithm = FALSE;
+        }
+
+        //
+        // For OS binaries require strong algorithm.
+        //
+        if (OsBinaryCheck && !bStrongAlgorithm) {
+            ntStatus = STATUS_ENCRYPTION_FAILED;
+            break;
+        }
 
 #if 0
         BOOL bTrustedPublisher = TRUE;
@@ -2185,6 +2451,7 @@ NTSTATUS supVerifyFileSignature(
 
     } while (FALSE);
 
+    if (hFile) NtClose(hFile);
     if (usFileName.Buffer != NULL)
         RtlFreeUnicodeString(&usFileName);
 
@@ -3116,40 +3383,6 @@ BOOL supFindModuleEntryByAddress(
         }
     }
     return FALSE;
-}
-
-size_t supxEscStrlen(wchar_t* s)
-{
-    size_t  result = 2;
-    wchar_t* s0 = s;
-
-    while (*s)
-    {
-        if (*s == L'"')
-            ++result;
-        ++s;
-    }
-
-    return result + (s - s0);
-}
-
-wchar_t* supxEscStrcpy(wchar_t* dst, wchar_t* src)
-{
-    *(dst++) = L'"';
-
-    while ((*dst = *src) != L'\0')
-    {
-        if (*src == L'"')
-            *(++dst) = L'"';
-
-        ++src;
-        ++dst;
-    }
-
-    *(dst++) = L'"';
-    *dst = L'\0';
-
-    return dst;
 }
 
 /*

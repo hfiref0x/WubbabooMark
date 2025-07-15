@@ -73,7 +73,8 @@
 #include <wbemidl.h> 
 #include <oleauto.h>
 #include <wintrust.h>
-
+#include <mscat.h>
+#include <Softpub.h>
 
 //
 // Main window listview.

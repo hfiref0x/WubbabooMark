@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.10
 *
-*  DATE:        11 Jul 2025
+*  DATE:        13 Jul 2025
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -1972,8 +1972,8 @@ NTSTATUS supxVerifyCatalogSignature(
     HANDLE hCatAdmin = NULL;
     HANDLE hCatInfo = NULL;
     CATALOG_INFO catalogInfo;
-    BYTE hash[20];
-    DWORD hashSize = sizeof(hash);
+    BYTE* hash = NULL;
+    DWORD hashSize = 0;
 
     *pbCatalogSigned = FALSE;
 
@@ -1981,13 +1981,15 @@ NTSTATUS supxVerifyCatalogSignature(
         return STATUS_INVALID_PARAMETER;
 
     do {
-        if (!CryptCATAdminCalcHashFromFileHandle(hFile,
-            &hashSize,
-            hash,
-            0))
-        {
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, NULL, 0))
             break;
-        }
+
+        hash = (BYTE*)supHeapAlloc(hashSize);
+        if (!hash)
+            break;
+
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, hash, 0))
+            break;
 
         hCatInfo = CryptCATAdminEnumCatalogFromHash(
             hCatAdmin,
@@ -2012,6 +2014,7 @@ NTSTATUS supxVerifyCatalogSignature(
         }
     } while (FALSE);
 
+    if (hash) supHeapFree(hash);
     if (hCatAdmin)
         CryptCATAdminReleaseContext(hCatAdmin, 0);
 
@@ -2085,12 +2088,7 @@ NTSTATUS supxVerifySignatureAlgorithmStrength(
 
         pAlgId = &pSignerInfo->HashAlgorithm;
 
-        if (_strcmp_a(pAlgId->pszObjId, szOID_OIWSEC_sha1) == 0 ||
-            _strcmp_a(pAlgId->pszObjId, szOID_RSA_MD5) == 0)
-        {
-            *pbStrongAlgorithm = FALSE;
-        }
-        else if (_strcmp_a(pAlgId->pszObjId, szOID_NIST_sha256) == 0 ||
+        if (_strcmp_a(pAlgId->pszObjId, szOID_NIST_sha256) == 0 ||
             _strcmp_a(pAlgId->pszObjId, szOID_NIST_sha384) == 0 ||
             _strcmp_a(pAlgId->pszObjId, szOID_NIST_sha512) == 0)
         {
@@ -2202,8 +2200,8 @@ NTSTATUS supxVerifyCatalogTrust(
     NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
     HANDLE hCatAdmin = NULL;
     HANDLE hCatInfo = NULL;
-    BYTE hash[20];
-    DWORD hashSize = sizeof(hash);
+    BYTE* hash = NULL;
+    DWORD hashSize = 0;
     CATALOG_INFO catalogInfo;
     GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;
     WINTRUST_CATALOG_INFO catWintrust;
@@ -2219,15 +2217,16 @@ NTSTATUS supxVerifyCatalogTrust(
         return STATUS_INVALID_PARAMETER;
 
     do {
-        //
-        // 1. Calculate hash of the file.
-        //
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, NULL, 0))
+            break;
+
+        hash = (BYTE*)supHeapAlloc(hashSize);
+        if (!hash)
+            break;
+
         if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, hash, 0))
             break;
 
-        //
-        // 2. Locate the catalog file containing this hash.
-        //
         hCatInfo = CryptCATAdminEnumCatalogFromHash(
             hCatAdmin,
             hash,
@@ -2241,9 +2240,6 @@ NTSTATUS supxVerifyCatalogTrust(
         if (!CryptCATCatalogInfoFromContext(hCatInfo, &catalogInfo, 0))
             break;
 
-        //
-        // 3. Verify the catalog file's signature.
-        //
         catWintrust.cbStruct = sizeof(WINTRUST_CATALOG_INFO);
         catWintrust.pcwszCatalogFilePath = catalogInfo.wszCatalogFile;
         catWintrust.pbCalculatedFileHash = hash;
@@ -2268,6 +2264,7 @@ NTSTATUS supxVerifyCatalogTrust(
 
     } while (FALSE);
 
+    if (hash) supHeapFree(hash);
     if (hCatInfo)
         CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
     if (hCatAdmin)

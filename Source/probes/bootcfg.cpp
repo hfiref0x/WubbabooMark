@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.10
 *
-*  DATE:        11 Jul 2025
+*  DATE:        13 Jul 2025
 *
 *  Boot configuration probes.
 *  Elevation required.
@@ -387,8 +387,8 @@ HRESULT BcdOpenDefaultOsLoader(
 
     if (methodName) SysFreeString(methodName);
     if (pOutParamsObj) pOutParamsObj->Release();
-    if (pInParamsObj) pInParamsObj->Release();
     if (pObjectClass) pObjectClass->Release();
+    pInParamsObj->Release();
 
     return hr;
 }
@@ -449,7 +449,7 @@ HRESULT BcdOpenDefaultStore(
 
     if (methodName) SysFreeString(methodName);
     if (pOutParamsObj) pOutParamsObj->Release();
-    if (pInParamsObj) pInParamsObj->Release();
+    pInParamsObj->Release();
     pObjectClass->Release();
 
     return hr;

@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       REPORTS.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        01 Jul 2023
+*  DATE:        14 Jul 2025
 *
 *  Probe report workers.
 *
@@ -71,11 +71,11 @@ VOID SkReportWrongWinVersion(
     SkiIncreaseAnomalyCount();
 
     szText[0] = 0;
-    ultostr(dwVersionMajor, szText);
-    _strcat(szText, TEXT("."));
-    ultostr(dwVersionMinor, _strend(szText));
-    _strcat(szText, TEXT("."));
-    ultostr(dwBuildNumber, _strend(szText));
+    StringCchPrintf(szText, RTL_NUMBER_OF(szText),
+        TEXT("%lu.%lu.%lu"),
+        dwVersionMajor,
+        dwVersionMinor,
+        dwBuildNumber);
 
     supReportEvent(evtError,
         lpMessage,

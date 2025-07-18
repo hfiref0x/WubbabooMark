@@ -112,9 +112,7 @@
   <ItemGroup>
     <ClCompile Include="hde\hde64.c" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="minirtl\u64tohex.c" />
     <ClCompile Include="minirtl\ultohex.c" />
-    <ClCompile Include="minirtl\ultostr.c" />
     <ClCompile Include="minirtl\_strcat.c" />
     <ClCompile Include="minirtl\_strcmp.c" />
     <ClCompile Include="minirtl\_strcmpi.c" />

@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       WINVER.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        25 Nov 2023
+*  DATE:        14 Jul 2025
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -257,8 +257,13 @@ PVOID SkpValidateSyscallLayoutForVersionData(
             break;
         }
 
-        if (TestBuildNumber == NT_WIN11_22H2) {
+        if (TestBuildNumber == NT_WIN11_22H2 || TestBuildNumber == NT_WIN11_23H2) {
             lpName = (LPCSTR)"NtCreateCpuPartition";
+            break;
+        }
+
+        if (TestBuildNumber == NT_WIN11_24H2) {
+            lpName = (LPCSTR)"NtAlertThreadByThreadIdEx";
             break;
         }
 
@@ -266,8 +271,8 @@ PVOID SkpValidateSyscallLayoutForVersionData(
         // This one could be missing in early win11 previews and dev builds as it was introduced later.
         // It doesn't matter, if you want to play this hard, okay.
         //
-        if (TestBuildNumber > NT_WIN11_22H2) {
-            lpName = (LPCSTR)"NtAlertThreadByThreadIdEx";
+        if (TestBuildNumber > NT_WIN11_24H2) {
+            lpName = (LPCSTR)"NtQuerySystemTime";
             break;
         }
 

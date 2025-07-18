@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       SUP.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        25 Nov 2023
+*  DATE:        13 Jul 2025
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -98,7 +98,7 @@ BOOL supWriteConfiguration(
 
         if (lResult != ERROR_SUCCESS)
             dwLastError = GetLastError();
-        
+
         RegCloseKey(hKey);
     }
 
@@ -1293,6 +1293,9 @@ ULONG supExtractSSN(
 {
     PFEFN pfnRoutine;
 
+    if (ImageBase == NULL)
+        return INVALID_SYSCALL_ID;
+
     switch (Method) {
 
     case SsnInstructionScan:
@@ -1335,13 +1338,15 @@ LPVOID supLdrGetProcAddressEx(
     _In_ LPCSTR RoutineName
 )
 {
-    PIMAGE_EXPORT_DIRECTORY ExportDirectory = NULL;
-    USHORT OrdinalNumber;
-    PULONG NameTableBase;
-    PUSHORT NameOrdinalTableBase;
-    PULONG Addr;
+    USHORT OrdinalIndex;
     LONG Result;
+    PIMAGE_EXPORT_DIRECTORY ExportDirectory = NULL;
+    PULONG NameTableBase, FunctionTableBase;
+    PUSHORT NameOrdinalTableBase;
+    PCHAR CurrentName;
     ULONG High, Low, Middle = 0;
+    ULONG ExportDirRVA, ExportDirSize;
+    ULONG FunctionRVA;
 
     union {
         PIMAGE_NT_HEADERS64 nt64;
@@ -1349,65 +1354,77 @@ LPVOID supLdrGetProcAddressEx(
         PIMAGE_NT_HEADERS nt;
     } NtHeaders;
 
-    if (!NT_SUCCESS(RtlImageNtHeaderEx(RTL_IMAGE_NT_HEADER_EX_FLAG_NO_RANGE_CHECK,
-        ImageBase, 0, &NtHeaders.nt)))
-    {
+    if (ImageBase == NULL || RoutineName == NULL) {
+        SetLastError(ERROR_INVALID_PARAMETER);
         return NULL;
     }
 
+    NtHeaders.nt = RtlImageNtHeader(ImageBase);
     if (NtHeaders.nt == NULL) {
+        SetLastError(ERROR_INVALID_PARAMETER);
         return NULL;
     }
 
     if (NtHeaders.nt->FileHeader.Machine == IMAGE_FILE_MACHINE_AMD64) {
-
-        ExportDirectory = (PIMAGE_EXPORT_DIRECTORY)RtlOffsetToPointer(ImageBase,
-            NtHeaders.nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
-
+        ExportDirRVA = NtHeaders.nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+        ExportDirSize = NtHeaders.nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size;
     }
     else if (NtHeaders.nt->FileHeader.Machine == IMAGE_FILE_MACHINE_I386) {
-
-        ExportDirectory = (PIMAGE_EXPORT_DIRECTORY)RtlOffsetToPointer(ImageBase,
-            NtHeaders.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+        ExportDirRVA = NtHeaders.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+        ExportDirSize = NtHeaders.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size;
     }
-    else
-    {
+    else {
+        SetLastError(ERROR_EXE_MACHINE_TYPE_MISMATCH);
         return NULL;
     }
 
+    if (ExportDirRVA == 0 || ExportDirSize == 0) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        return NULL;
+    }
+
+    ExportDirectory = (PIMAGE_EXPORT_DIRECTORY)RtlOffsetToPointer((ULONG_PTR)ImageBase, ExportDirRVA);
     NameTableBase = (PULONG)RtlOffsetToPointer(ImageBase, (ULONG)ExportDirectory->AddressOfNames);
     NameOrdinalTableBase = (PUSHORT)RtlOffsetToPointer(ImageBase, (ULONG)ExportDirectory->AddressOfNameOrdinals);
+    FunctionTableBase = (PULONG)((ULONG_PTR)ImageBase + ExportDirectory->AddressOfFunctions);
+
+    if (ExportDirectory->NumberOfNames == 0) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        return NULL;
+    }
+
     Low = 0;
     High = ExportDirectory->NumberOfNames - 1;
-    while (High >= Low) {
 
-        Middle = (Low + High) >> 1;
-
-        Result = _strcmp_a(
-            RoutineName,
-            (char*)RtlOffsetToPointer(ImageBase, NameTableBase[Middle]));
-
+    while (Low <= High) {
+        Middle = Low + (High - Low) / 2;
+        CurrentName = (PCHAR)RtlOffsetToPointer((ULONG_PTR)ImageBase, NameTableBase[Middle]);
+        Result = _strcmp_a(RoutineName, CurrentName);
+        if (Result == 0) {
+            OrdinalIndex = NameOrdinalTableBase[Middle];
+            if (OrdinalIndex >= ExportDirectory->NumberOfFunctions) {
+                SetLastError(ERROR_PROC_NOT_FOUND);
+                return NULL;
+            }
+            FunctionRVA = FunctionTableBase[OrdinalIndex];
+            if (FunctionRVA == 0) {
+                SetLastError(ERROR_PROC_NOT_FOUND);
+                return NULL;
+            }
+            return (LPVOID)RtlOffsetToPointer((ULONG_PTR)ImageBase, FunctionRVA);
+        }
         if (Result < 0) {
+            if (Middle == 0) break;
             High = Middle - 1;
         }
         else {
-            if (Result > 0) {
-                Low = Middle + 1;
-            }
-            else {
-                break;
-            }
+            Low = Middle + 1;
         }
+
     }
-    if (High < Low)
-        return NULL;
 
-    OrdinalNumber = NameOrdinalTableBase[Middle];
-    if ((ULONG)OrdinalNumber >= ExportDirectory->NumberOfFunctions)
-        return NULL;
-
-    Addr = (PULONG)RtlOffsetToPointer(ImageBase, (ULONG)ExportDirectory->AddressOfFunctions);
-    return (LPVOID)RtlOffsetToPointer(ImageBase, Addr[OrdinalNumber]);
+    SetLastError(ERROR_PROC_NOT_FOUND);
+    return NULL;
 }
 
 /*
@@ -1939,6 +1956,324 @@ BOOL supSignerIsMsft(
 }
 
 /*
+* supxVerifyCatalogSignature
+*
+* Purpose:
+*
+* Verify if file is signed via catalog file rather than embedded signature.
+*
+*/
+NTSTATUS supxVerifyCatalogSignature(
+    _In_ HANDLE hFile,
+    _Out_ PBOOL pbCatalogSigned
+)
+{
+    NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
+    HANDLE hCatAdmin = NULL;
+    HANDLE hCatInfo = NULL;
+    CATALOG_INFO catalogInfo;
+    BYTE* hash = NULL;
+    DWORD hashSize = 0;
+
+    *pbCatalogSigned = FALSE;
+
+    if (!CryptCATAdminAcquireContext(&hCatAdmin, NULL, 0))
+        return STATUS_INVALID_PARAMETER;
+
+    do {
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, NULL, 0))
+            break;
+
+        hash = (BYTE*)supHeapAlloc(hashSize);
+        if (!hash)
+            break;
+
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, hash, 0))
+            break;
+
+        hCatInfo = CryptCATAdminEnumCatalogFromHash(
+            hCatAdmin,
+            hash,
+            hashSize,
+            0,
+            NULL);
+
+        if (hCatInfo) {
+            RtlZeroMemory(&catalogInfo, sizeof(CATALOG_INFO));
+            catalogInfo.cbStruct = sizeof(CATALOG_INFO);
+
+            if (CryptCATCatalogInfoFromContext(hCatInfo, &catalogInfo, 0)) {
+                *pbCatalogSigned = TRUE;
+                ntStatus = STATUS_SUCCESS;
+            }
+
+            CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+        }
+        else {
+            ntStatus = STATUS_SUCCESS;
+        }
+    } while (FALSE);
+
+    if (hash) supHeapFree(hash);
+    if (hCatAdmin)
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+
+    return ntStatus;
+}
+
+/*
+* supxVerifySignatureAlgorithmStrength
+*
+* Purpose:
+*
+* Verify that the signature uses sufficiently strong cryptographic algorithms.
+*
+*/
+NTSTATUS supxVerifySignatureAlgorithmStrength(
+    _In_ LPCWSTR lpFileName,
+    _Out_ PBOOL pbStrongAlgorithm
+)
+{
+    NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
+    HCERTSTORE hStore = NULL;
+    HCRYPTMSG hMsg = NULL;
+    DWORD dwEncoding, dwContentType, dwFormatType;
+    DWORD dwSignerInfo = 0;
+    PCMSG_SIGNER_INFO pSignerInfo = NULL;
+    CRYPT_ALGORITHM_IDENTIFIER* pAlgId;
+
+    *pbStrongAlgorithm = FALSE;
+
+    if (!CryptQueryObject(
+        CERT_QUERY_OBJECT_FILE,
+        lpFileName,
+        CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
+        CERT_QUERY_FORMAT_FLAG_BINARY,
+        0,
+        &dwEncoding,
+        &dwContentType,
+        &dwFormatType,
+        &hStore,
+        &hMsg,
+        NULL))
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    do {
+        if (!CryptMsgGetParam(
+            hMsg,
+            CMSG_SIGNER_INFO_PARAM,
+            0,
+            NULL,
+            &dwSignerInfo))
+        {
+            break;
+        }
+
+        pSignerInfo = (PCMSG_SIGNER_INFO)supHeapAlloc(dwSignerInfo);
+        if (!pSignerInfo) {
+            break;
+        }
+
+        if (!CryptMsgGetParam(
+            hMsg,
+            CMSG_SIGNER_INFO_PARAM,
+            0,
+            (PVOID)pSignerInfo,
+            &dwSignerInfo))
+        {
+            break;
+        }
+
+        pAlgId = &pSignerInfo->HashAlgorithm;
+
+        if (_strcmp_a(pAlgId->pszObjId, szOID_NIST_sha256) == 0 ||
+            _strcmp_a(pAlgId->pszObjId, szOID_NIST_sha384) == 0 ||
+            _strcmp_a(pAlgId->pszObjId, szOID_NIST_sha512) == 0)
+        {
+            *pbStrongAlgorithm = TRUE;
+        }
+
+        ntStatus = STATUS_SUCCESS;
+    } while (FALSE);
+
+    if (pSignerInfo) supHeapFree(pSignerInfo);
+    if (hStore) CertCloseStore(hStore, 0);
+    if (hMsg) CryptMsgClose(hMsg);
+
+    return ntStatus;
+}
+
+/*
+* supxGetSignatureTimestamp
+*
+* Purpose:
+*
+* Extract timestamp from signature data.
+*
+*/
+BOOL supxGetSignatureTimestamp(
+    _In_ HANDLE hWVTStateData,
+    _Out_ PFILETIME pTimeStamp
+)
+{
+    BOOL result = FALSE;
+    PCRYPT_PROVIDER_DATA pProvData;
+    PCRYPT_PROVIDER_SGNR pProvSigner;
+
+    if (hWVTStateData == NULL || pTimeStamp == NULL)
+        return FALSE;
+
+    RtlSecureZeroMemory(pTimeStamp, sizeof(FILETIME));
+
+    pProvData = WTHelperProvDataFromStateData(hWVTStateData);
+    if (pProvData) {
+        pProvSigner = WTHelperGetProvSignerFromChain(pProvData, 0, FALSE, 0);
+        if (pProvSigner) {
+            if (pProvSigner->sftVerifyAsOf.dwLowDateTime || pProvSigner->sftVerifyAsOf.dwHighDateTime) {
+                pTimeStamp->dwLowDateTime = pProvSigner->sftVerifyAsOf.dwLowDateTime;
+                pTimeStamp->dwHighDateTime = pProvSigner->sftVerifyAsOf.dwHighDateTime;
+                result = TRUE;
+            }
+        }
+    }
+
+    return result;
+}
+
+/*
+* supxVerifyCertificateValidAtSigningTime
+*
+* Purpose:
+*
+* Check if certificate validity period includes signing time.
+*
+*/
+BOOL supxVerifyCertificateValidAtSigningTime(
+    _In_ HANDLE hWVTStateData,
+    _In_ PFILETIME pSigningTime
+)
+{
+    BOOL result = FALSE;
+    PCRYPT_PROVIDER_DATA pProvData;
+    PCRYPT_PROVIDER_SGNR pProvSigner;
+    PCRYPT_PROVIDER_CERT pProvCert;
+    PCCERT_CONTEXT pCertContext;
+
+    if (hWVTStateData == NULL || pSigningTime == NULL)
+        return FALSE;
+
+    do {
+        pProvData = WTHelperProvDataFromStateData(hWVTStateData);
+        if (pProvData == NULL)
+            break;
+        pProvSigner = WTHelperGetProvSignerFromChain(pProvData, 0, FALSE, 0);
+        if (pProvSigner == NULL)
+            break;
+        pProvCert = WTHelperGetProvCertFromChain(pProvSigner, 0);
+        if (pProvCert == NULL)
+            break;
+        pCertContext = pProvCert->pCert;
+        if (pCertContext == NULL)
+            break;
+
+        result = (CertVerifyTimeValidity(pSigningTime, pCertContext->pCertInfo) == 0);
+
+    } while (FALSE);
+
+    return result;
+}
+
+/*
+* supxVerifyCatalogTrust
+*
+* Purpose:
+*
+* Locate the catalog file, verify the catalog signature,
+* and check if the file hash is present in the catalog.
+*/
+NTSTATUS supxVerifyCatalogTrust(
+    _In_ HANDLE hFile
+)
+{
+    NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
+    HANDLE hCatAdmin = NULL;
+    HANDLE hCatInfo = NULL;
+    BYTE* hash = NULL;
+    DWORD hashSize = 0;
+    CATALOG_INFO catalogInfo;
+    GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    WINTRUST_CATALOG_INFO catWintrust;
+    WINTRUST_DATA wintrustData;
+    LONG wintrustResult = ERROR_GEN_FAILURE;
+
+    RtlZeroMemory(&catalogInfo, sizeof(CATALOG_INFO));
+    RtlZeroMemory(&catWintrust, sizeof(WINTRUST_CATALOG_INFO));
+    RtlZeroMemory(&wintrustData, sizeof(WINTRUST_DATA));
+    catalogInfo.cbStruct = sizeof(CATALOG_INFO);
+
+    if (!CryptCATAdminAcquireContext(&hCatAdmin, NULL, 0))
+        return STATUS_INVALID_PARAMETER;
+
+    do {
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, NULL, 0))
+            break;
+
+        hash = (BYTE*)supHeapAlloc(hashSize);
+        if (!hash)
+            break;
+
+        if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, hash, 0))
+            break;
+
+        hCatInfo = CryptCATAdminEnumCatalogFromHash(
+            hCatAdmin,
+            hash,
+            hashSize,
+            0,
+            NULL);
+
+        if (!hCatInfo)
+            break;
+
+        if (!CryptCATCatalogInfoFromContext(hCatInfo, &catalogInfo, 0))
+            break;
+
+        catWintrust.cbStruct = sizeof(WINTRUST_CATALOG_INFO);
+        catWintrust.pcwszCatalogFilePath = catalogInfo.wszCatalogFile;
+        catWintrust.pbCalculatedFileHash = hash;
+        catWintrust.cbCalculatedFileHash = hashSize;
+        catWintrust.pcwszMemberTag = NULL;
+        catWintrust.pcwszMemberFilePath = NULL;
+
+        wintrustData.cbStruct = sizeof(WINTRUST_DATA);
+        wintrustData.dwUIChoice = WTD_UI_NONE;
+        wintrustData.fdwRevocationChecks = WTD_REVOKE_WHOLECHAIN;
+        wintrustData.dwUnionChoice = WTD_CHOICE_CATALOG;
+        wintrustData.pCatalog = &catWintrust;
+        wintrustData.dwStateAction = 0;
+        wintrustData.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL;
+        wintrustData.hWVTStateData = NULL;
+        wintrustData.pPolicyCallbackData = NULL;
+        wintrustData.pSIPClientData = NULL;
+
+        wintrustResult = WinVerifyTrust(NULL, &guidAction, &wintrustData);
+        if (wintrustResult == ERROR_SUCCESS)
+            ntStatus = STATUS_SUCCESS;
+
+    } while (FALSE);
+
+    if (hash) supHeapFree(hash);
+    if (hCatInfo)
+        CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+    if (hCatAdmin)
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+
+    return ntStatus;
+}
+
+/*
 * supVerifyFileSignature
 *
 * Purpose:
@@ -1953,13 +2288,15 @@ NTSTATUS supVerifyFileSignature(
     _In_ ptrWTGetSignatureInfo pWTGetSignatureInfo
 )
 {
-    BOOL bValid = FALSE, bTrustedFileOwner = FALSE;
+    BOOL bValid = FALSE, bTrustedFileOwner = FALSE, bStrongAlgorithm = FALSE, bCatalogSigned = FALSE;
     NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
     HANDLE hFile = NULL;
     OBJECT_ATTRIBUTES attr;
     IO_STATUS_BLOCK iosb;
     UNICODE_STRING usFileName;
     SIGNATURE_INFO sigData;
+    FILETIME ftTimeStamp, ftNow;
+    HANDLE hWVTStateData = NULL;
     DWORD dwFlags = SIF_BASE_VERIFICATION | SIF_CATALOG_SIGNED;
 
     if (pWTGetSignatureInfo == NULL)
@@ -2005,8 +2342,6 @@ NTSTATUS supVerifyFileSignature(
             dwFlags |= SIF_AUTHENTICODE_SIGNED;
         }
 
-        HANDLE hWVTStateData;
-
         ntStatus = pWTGetSignatureInfo(lpFileName,
             hFile,
             dwFlags,
@@ -2014,10 +2349,35 @@ NTSTATUS supVerifyFileSignature(
             NULL,
             &hWVTStateData);
 
-        NtClose(hFile);
-
         if (!NT_SUCCESS(ntStatus))
             break;
+
+        //
+        // Check if the file is catalog-signed.
+        //
+        ntStatus = supxVerifyCatalogSignature(hFile, &bCatalogSigned);
+        if (NT_SUCCESS(ntStatus) && bCatalogSigned) {
+            ntStatus = supxVerifyCatalogTrust(hFile);
+            if (!NT_SUCCESS(ntStatus)) {
+                break;
+            }
+        }
+
+        //
+        // Verify signature algorithm strength.
+        //
+        ntStatus = supxVerifySignatureAlgorithmStrength(lpFileName, &bStrongAlgorithm);
+        if (!NT_SUCCESS(ntStatus)) {
+            bStrongAlgorithm = FALSE;
+        }
+
+        //
+        // For OS binaries require strong algorithm.
+        //
+        if (OsBinaryCheck && !bStrongAlgorithm) {
+            ntStatus = STATUS_ENCRYPTION_FAILED;
+            break;
+        }
 
 #if 0
         BOOL bTrustedPublisher = TRUE;
@@ -2057,13 +2417,38 @@ NTSTATUS supVerifyFileSignature(
                 (sigData.SignatureType == SIT_AUTHENTICODE);
         }
 
-        if (!bValid)
-            ntStatus = STATUS_UNSUCCESSFUL;
-        else
-            ntStatus = STATUS_SUCCESS;
+        if (bValid && hWVTStateData) {
+            //
+            // Verify signature timestamp.
+            //
+            if (supxGetSignatureTimestamp(hWVTStateData, &ftTimeStamp)) {
+                GetSystemTimeAsFileTime(&ftNow);
+
+                //
+                // Verify timestamp is not in the future.
+                //
+                if (CompareFileTime(&ftTimeStamp, &ftNow) > 0) {
+                    bValid = FALSE;
+                    ntStatus = STATUS_TIME_DIFFERENCE_AT_DC;
+                    break;
+                }
+
+                //
+                // Verify certificate was valid at signing time.
+                //
+                if (!supxVerifyCertificateValidAtSigningTime(hWVTStateData, &ftTimeStamp)) {
+                    bValid = FALSE;
+                    ntStatus = STATUS_QUIC_TLS_CERTIFICATE_EXPIRED;
+                    break;
+                }
+            }
+        }
+
+        ntStatus = bValid ? STATUS_SUCCESS : STATUS_UNSUCCESSFUL;
 
     } while (FALSE);
 
+    if (hFile) NtClose(hFile);
     if (usFileName.Buffer != NULL)
         RtlFreeUnicodeString(&usFileName);
 
@@ -2085,38 +2470,39 @@ PWSTR supxFindFileVersion(
 )
 {
     PWCHAR data = (PWCHAR)DataPtr;
-    SIZE_T i, dataSize = DataSize / sizeof(WCHAR);
+    SIZE_T dataSize = DataSize / sizeof(WCHAR);
+    SIZE_T i;
 
     for (i = 0; i < dataSize; i++) {
 
-        if (dataSize >= 13) {
-
-            //
-            // FileVersion + 00
-            //
+        //
+        // FileVersion + 00
+        //
+        if (i + 13 <= dataSize) {
             if (data[i + 0] == L'F' && data[i + 1] == L'i' &&
                 data[i + 2] == L'l' && data[i + 3] == L'e' &&
                 data[i + 4] == L'V' && data[i + 5] == L'e' &&
                 data[i + 6] == L'r' && data[i + 7] == L's' &&
                 data[i + 8] == L'i' && data[i + 9] == L'o' &&
-                data[i + 10] == L'n' && data[i + 11] == 0 && data[i + 12] == 0)
+                data[i + 10] == L'n' &&
+                data[i + 11] == 0 && data[i + 12] == 0)
             {
                 return data + i + 13;
             }
         }
 
-        if (dataSize >= 15) {
-
-            //
-            // ProductVersion + 00
-            //               
+        //
+        // ProductVersion + 00
+        // 
+        if (i + 15 <= dataSize) {
             if (data[i + 0] == L'P' && data[i + 1] == L'r' &&
                 data[i + 2] == L'o' && data[i + 3] == L'd' &&
                 data[i + 4] == L'u' && data[i + 5] == L'c' &&
                 data[i + 6] == L't' && data[i + 7] == L'V' &&
                 data[i + 8] == L'e' && data[i + 9] == L'r' &&
                 data[i + 10] == L's' && data[i + 11] == L'i' &&
-                data[i + 12] == L'o' && data[i + 13] == L'n' && data[i + 14] == 0)
+                data[i + 12] == L'o' && data[i + 13] == L'n' &&
+                data[i + 14] == 0)
             {
                 return data + i + 15;
             }
@@ -2685,6 +3071,13 @@ NTSTATUS supQueryObjectInformation(
         return ntStatus;
     }
 
+    //
+    // Check return length for reasonable value.
+    //
+    if (returnLength == 0 || returnLength > NTQOI_MAX_BUFER_LENGTH) {
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
     queryBuffer = supHeapAlloc(returnLength);
     if (queryBuffer == NULL)
         return STATUS_INSUFFICIENT_RESOURCES;
@@ -2989,40 +3382,6 @@ BOOL supFindModuleEntryByAddress(
     return FALSE;
 }
 
-size_t supxEscStrlen(wchar_t* s)
-{
-    size_t  result = 2;
-    wchar_t* s0 = s;
-
-    while (*s)
-    {
-        if (*s == L'"')
-            ++result;
-        ++s;
-    }
-
-    return result + (s - s0);
-}
-
-wchar_t* supxEscStrcpy(wchar_t* dst, wchar_t* src)
-{
-    *(dst++) = L'"';
-
-    while ((*dst = *src) != L'\0')
-    {
-        if (*src == L'"')
-            *(++dst) = L'"';
-
-        ++src;
-        ++dst;
-    }
-
-    *(dst++) = L'"';
-    *dst = L'\0';
-
-    return dst;
-}
-
 /*
 * supxListViewExportCSV
 *
@@ -3031,109 +3390,100 @@ wchar_t* supxEscStrcpy(wchar_t* dst, wchar_t* src)
 * Export listview entries into file in csv format.
 *
 */
-BOOL supxListViewExportCSV(
-    _In_ HWND List,
-    _In_ PWCHAR FileName)
+BOOL supxListViewExportCSV(_In_ HWND List, _In_ PWCHAR FileName)
 {
-    HWND hdr = ListView_GetHeader(List);
-    int pass, i, c, col_count = Header_GetItemCount(hdr), icount = 1 + ListView_GetItemCount(List);
-    HDITEM ih;
-    LVITEM lvi;
-    PWCHAR text, buffer0 = NULL, buffer = NULL;
+    HWND hdr;
+    HDITEM headerItem;
+    LVITEM lvItem;
+    PWCHAR buffer = NULL, writePtr = NULL;
+    PWCHAR text = NULL;
+    INT rowCount, colCount, row, col;
+    SIZE_T totalSize = 0, requiredSize;
     BOOL result = FALSE;
-    SIZE_T total_length;
-    DWORD iobytes;
-    HANDLE hFile;
+    HANDLE hFile = NULL;
+    DWORD bytesWritten;
 
-    text = (PWCHAR)supVirtualAlloc(32768 * sizeof(WCHAR),
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_READWRITE);
-
-    if (!text)
+    text = (PWCHAR)supVirtualAlloc((UNICODE_STRING_MAX_CHARS + 1) * sizeof(WCHAR), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (text == NULL)
         return FALSE;
 
-    RtlSecureZeroMemory(&ih, sizeof(HDITEM));
-    RtlSecureZeroMemory(&lvi, sizeof(LVITEM));
+    do {
+        hdr = ListView_GetHeader(List);
+        colCount = Header_GetItemCount(hdr);
+        rowCount = ListView_GetItemCount(List);
 
-    ih.pszText = lvi.pszText = text;
-    ih.cchTextMax = lvi.cchTextMax = 32767;
+        if (colCount == 0 || rowCount == 0)
+            break;
 
-    for (pass = 0; pass < 2; ++pass)
-    {
-        total_length = 0;
+        totalSize = (rowCount + 1) * colCount * 256;
+        buffer = (PWCHAR)supVirtualAlloc(totalSize * sizeof(WCHAR), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if (buffer == NULL)
+            break;
 
-        for (i = 0; i < icount; ++i)
-        {
-            for (c = 0; c < col_count; ++c)
-            {
+        writePtr = buffer;
+
+        headerItem.mask = HDI_TEXT | HDI_ORDER;
+        headerItem.pszText = text;
+        headerItem.cchTextMax = UNICODE_STRING_MAX_CHARS;
+
+        lvItem.mask = LVIF_TEXT;
+        lvItem.pszText = text;
+        lvItem.cchTextMax = UNICODE_STRING_MAX_CHARS;
+
+        for (col = 0; col < colCount; col++) {
+            text[0] = L'\0';
+            headerItem.iOrder = col;
+            Header_GetItem(hdr, col, &headerItem);
+
+            *writePtr++ = L'"';
+            for (PWCHAR p = text; *p; p++) {
+                *writePtr++ = *p;
+                if (*p == L'"')
+                    *writePtr++ = L'"';
+            }
+            *writePtr++ = L'"';
+
+            if (col < colCount - 1)
+                *writePtr++ = L',';
+        }
+        *writePtr++ = L'\r';
+        *writePtr++ = L'\n';
+
+        for (row = 0; row < rowCount; row++) {
+            for (col = 0; col < colCount; col++) {
                 text[0] = L'\0';
-                if (i == 0)
-                {
-                    ih.mask = HDI_TEXT | HDI_ORDER;
-                    ih.iOrder = c;
-                    Header_GetItem(hdr, c, &ih);
-                }
-                else
-                {
-                    lvi.mask = LVIF_TEXT;
-                    lvi.iItem = i - 1;
-                    lvi.iSubItem = c;
-                    ListView_GetItem(List, &lvi);
-                }
-                total_length += supxEscStrlen(text) + 1;
+                lvItem.iItem = row;
+                lvItem.iSubItem = col;
+                ListView_GetItem(List, &lvItem);
 
-                if (buffer)
-                {
-                    buffer = supxEscStrcpy(buffer, text);
-                    if (c != col_count - 1)
-                    {
-                        *(buffer++) = L',';
-                    }
-                    else
-                    {
-                        *(buffer++) = L'\r';
-                        *(buffer++) = L'\n';
-                    }
+                *writePtr++ = L'"';
+                for (PWCHAR p = text; *p; p++) {
+                    *writePtr++ = *p;
+                    if (*p == L'"')
+                        *writePtr++ = L'"';
                 }
+                *writePtr++ = L'"';
+
+                if (col < colCount - 1)
+                    *writePtr++ = L',';
             }
-            ++total_length;
+            *writePtr++ = L'\r';
+            *writePtr++ = L'\n';
+        }
+        *writePtr = L'\0';
+
+        hFile = CreateFile(FileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hFile != INVALID_HANDLE_VALUE) {
+            requiredSize = (SIZE_T)((ULONG_PTR)writePtr - (ULONG_PTR)buffer);
+            result = WriteFile(hFile, buffer, (DWORD)requiredSize, &bytesWritten, NULL);
+            CloseHandle(hFile);
         }
 
-        if (buffer0 == NULL)
-        {
-            buffer0 = (PWCHAR)supVirtualAlloc((1 + total_length) * sizeof(WCHAR),
-                MEM_COMMIT | MEM_RESERVE,
-                PAGE_READWRITE);
-
-            if (!buffer0)
-                break;
-        }
-        else
-        {
-            hFile = CreateFile(FileName,
-                GENERIC_WRITE | SYNCHRONIZE,
-                FILE_SHARE_READ,
-                NULL,
-                CREATE_ALWAYS,
-                FILE_ATTRIBUTE_NORMAL,
-                NULL);
-
-            if (hFile != INVALID_HANDLE_VALUE) {
-
-                WriteFile(hFile,
-                    buffer0,
-                    (DWORD)(total_length * sizeof(WCHAR)),
-                    &iobytes, NULL);
-
-                CloseHandle(hFile);
-                result = TRUE;
-            }
-            supVirtualFree(buffer0);
-        }
-        buffer = buffer0;
-    }
+    } while (FALSE);
 
     supVirtualFree(text);
+    if (buffer) supVirtualFree(buffer);
     return result;
 }
 
@@ -3350,6 +3700,11 @@ NTSTATUS supGetMappedFileName(
             objectNameInfo,
             returnedLength,
             &returnedLength);
+
+        if (!NT_SUCCESS(ntStatus)) {
+            supHeapFree(objectNameInfo);
+            objectNameInfo = NULL;
+        }
 
     } while (FALSE);
 
@@ -3922,12 +4277,7 @@ NTSTATUS supQueryNtOsInformation(
 
     if (NT_SUCCESS(ntStatus)) {
 
-        {
-            PUSH_DISABLE_WARNING(4054)
-                Ptr = (PVOID)supLdrGetProcAddressEx(baseAddress, "NtBuildNumber");
-            POP_DISABLE_WARNING(4054)
-        }
-
+        Ptr = (PVOID)supLdrGetProcAddressEx(baseAddress, "NtBuildNumber");
         if (Ptr) {
             *BuildNumber = (*(PULONG)Ptr & 0xffff);
 

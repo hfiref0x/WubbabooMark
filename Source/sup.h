@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       SUP.H
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        25 Nov 2023
+*  DATE:        13 Jul 2025
 *
 *  Common header file for the program support routines.
 *
@@ -213,6 +213,7 @@ typedef NTSTATUS(NTAPI* PENUMOBJECTSCALLBACK)(
     _In_opt_ PVOID CallbackParam);
 
 #define NTQSI_MAX_BUFFER_LENGTH (512 * 1024 * 1024)
+#define NTQOI_MAX_BUFER_LENGTH (128 * 1024 * 1024)
 
 #define supHeapAlloc(Size) RtlAllocateHeap(NtCurrentPeb()->ProcessHeap, HEAP_ZERO_MEMORY, Size)
 #define supHeapFree(BaseAddress) RtlFreeHeap(NtCurrentPeb()->ProcessHeap, 0, BaseAddress);

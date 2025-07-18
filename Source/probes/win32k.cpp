@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       WIN32K.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        25 Nov 2023
+*  DATE:        14 Jul 2025
 *
 *  NtUser/NtGdi probes (Windows 10 RS4 and above ONLY).
 *
@@ -363,7 +363,7 @@ BOOL SkGdiSharedHandleTableWalk(
             SkpWin32ExceptionRIP(DT_NTGDI_INTERNAL_ERROR);
             return FALSE;
         }
-        supHeapFree(processList);
+        if (processList) supHeapFree(processList);
     }
 
     return (SkiGetAnomalyCount() == oldAnomalyCount);

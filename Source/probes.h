@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       PROBES.H
 *
 *  VERSION:     1.00
 *
-*  DATE:        25 Nov 2023
+*  DATE:        10 Jul 2025
 *
 *  Common header file for the program probes.
 *
@@ -63,8 +63,8 @@ typedef struct _PROBE_SETTINGS {
 #define PROBE_FLAGS_CHECK_WIN32K_SYSCALLS       (0x2000) 
 #define PROBE_FLAGS_CHECK_DEBUG                 (0x4000)  
 #define PROBE_FLAGS_CHECK_HANDLES               (0x8000) 
-#define PROBE_FLAGS_WALK_USERHADLETABLE         (0x10000) 
-#define PROBE_FLAGS_WALK_GDISHAREDHADLETABLE    (0x20000) 
+#define PROBE_FLAGS_WALK_USERHANDLETABLE        (0x10000) 
+#define PROBE_FLAGS_WALK_GDISHAREDHANDLETABLE   (0x20000) 
 #define PROBE_FLAGS_CHECK_BCD                   (0x40000)
 #define PROBE_FLAGS_CHECK_PROCESS_MEMORY        (0x80000)
 

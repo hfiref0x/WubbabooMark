@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       SYSCALL.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        25 Nov 2023
+*  DATE:        14 Jul 2025
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -267,27 +267,25 @@ BOOL SkTestVectoredCall(
     BOOL bCheckPassed = TRUE;
     NTCALL_THREAD_CONTEXT ctx;
     SYSTEM_KERNEL_DEBUGGER_INFORMATION_EX info;
-    ULONG returnLength;
+    ULONG returnLength = 0;
     NTSTATUS ntStatus;
+    PVOID vehHandle;
     pfnNtQuerySystemInformation Function = (pfnNtQuerySystemInformation)((ULONG64)~((ULONG64)0x1337));
 
     RtlFillMemory(&ctx, sizeof(ctx), 0);
     ctx.SystemCallAddress = SystemCallAddress;
     ctx.SystemCallNumber = SystemCallNumber;
 
-    if (RtlAddVectoredExceptionHandler(1, (PVECTORED_EXCEPTION_HANDLER)&SkpVectoredExceptionHandler)) {
+    vehHandle = RtlAddVectoredExceptionHandler(1, (PVECTORED_EXCEPTION_HANDLER)&SkpVectoredExceptionHandler);
+    if (vehHandle) {
 
         RtlPushFrame((PTEB_ACTIVE_FRAME)&ctx);
 
-        {
-            PUSH_DISABLE_WARNING(6011)
-                ntStatus = Function(SystemKernelDebuggerInformationEx, &info, sizeof(info), &returnLength);
-            POP_DISABLE_WARNING(6011)
-        }
+        ntStatus = Function(SystemKernelDebuggerInformationEx, &info, sizeof(info), &returnLength);
 
         RtlPopFrame((PTEB_ACTIVE_FRAME)&ctx);
 
-        RtlRemoveVectoredExceptionHandler((PVECTORED_EXCEPTION_HANDLER)&SkpVectoredExceptionHandler);
+        RtlRemoveVectoredExceptionHandler(vehHandle);
 
         if (NT_SUCCESS(ntStatus)) {
 

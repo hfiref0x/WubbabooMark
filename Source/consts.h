@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       CONSTS.H
 *
-*  VERSION:     1.00
+*  VERSION:     1.10
 *
-*  DATE:        25 Nov 2023
+*  DATE:        14 Jul 2025
 *
 *  Global consts definition file.
 *
@@ -63,6 +63,8 @@
 #define DT_APPCOMPAT (LPWSTR)TEXT("AppCompat")
 
 #define DT_DRIVER_DEVICE (LPWSTR)TEXT("Driver Device")
+
+#define DT_HANDLE_MANIPULATION (LPWSTR)TEXT("Handle")
 
 #define DT_DEBUGGER_TFLAG_RDTSC (LPWSTR)TEXT("TF RDTSC")
 #define DT_DEBUGGER_DRX (LPWSTR)TEXT("Debug Registers")

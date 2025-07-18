@@ -1,12 +1,12 @@
 ﻿/*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023
+*  (C) COPYRIGHT AUTHORS, 2023 - 2025
 *
 *  TITLE:       MAIN.CPP
 *
-*  VERSION:     1.00
+*  VERSION:     1.01
 *
-*  DATE:        25 Nov 2023
+*  DATE:        14 Jul 2025
 *
 *  CodeName:    Skilla
 *
@@ -23,7 +23,7 @@
 
 // low area height plus the borders
 #define BORDERHEIGHT 8
-#define BORDRERSPACE 4
+#define BORDERSPACE 4
 
 //
 // Global variables.
@@ -94,7 +94,7 @@ VOID MainWindowOnResize(
 
     SendMessage(hwndStatusBar, WM_SIZE, 0, 0);
 
-    SetWindowPos(hwndList, NULL, BORDRERSPACE, BORDRERSPACE,
+    SetWindowPos(hwndList, NULL, BORDERSPACE, BORDERSPACE,
         r.right - BORDERHEIGHT,
         r.bottom - szr.bottom - BORDERHEIGHT,
         SWP_NOZORDER);
@@ -126,8 +126,8 @@ VOID SettingsReadWrite(
         { IDC_PROBES14, PROBE_FLAGS_CHECK_WIN32K_SYSCALLS },
         { IDC_PROBES15, PROBE_FLAGS_CHECK_DEBUG },
         { IDC_PROBES16, PROBE_FLAGS_CHECK_HANDLES },
-        { IDC_PROBES17, PROBE_FLAGS_WALK_USERHADLETABLE },
-        { IDC_PROBES18, PROBE_FLAGS_WALK_GDISHAREDHADLETABLE },
+        { IDC_PROBES17, PROBE_FLAGS_WALK_USERHANDLETABLE },
+        { IDC_PROBES18, PROBE_FLAGS_WALK_GDISHAREDHANDLETABLE },
         { IDC_PROBES19, PROBE_FLAGS_CHECK_BCD },
         { IDC_PROBES20, PROBE_FLAGS_CHECK_PROCESS_MEMORY }
     };

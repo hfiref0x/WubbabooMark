@@ -193,7 +193,7 @@ BOOL DetectHandleHijacking()
                     result = TRUE;
                     SkiIncreaseAnomalyCount();
                     supReportEvent(evtDetection,
-                        (LPWSTR)TEXT("Handle duplication anomaly detected"),
+                        (LPWSTR)TEXT("Handle duplication"),
                         (LPWSTR)TEXT("NtDuplicateObject"),
                         DT_HANDLE_MANIPULATION);
                 }

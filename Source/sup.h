@@ -4,9 +4,9 @@
 *
 *  TITLE:       SUP.H
 *
-*  VERSION:     1.10
+*  VERSION:     1.11
 *
-*  DATE:        13 Jul 2025
+*  DATE:        10 Aug 2025
 *
 *  Common header file for the program support routines.
 *

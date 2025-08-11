@@ -2448,6 +2448,18 @@ NTSTATUS supVerifyFileSignature(
 
     } while (FALSE);
 
+    if (hWVTStateData) {
+        WINTRUST_DATA wintrustData;
+    
+        RtlSecureZeroMemory(&wintrustData, sizeof(wintrustData));
+        wintrustData.cbStruct = sizeof(wintrustData);
+        wintrustData.dwStateAction = WTD_STATEACTION_CLOSE;
+        wintrustData.hWVTStateData = hWVTStateData;
+        GUID guid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+        WinVerifyTrust(NULL, &guid, &wintrustData);
+        hWVTStateData = NULL;
+    }
+
     if (hFile) NtClose(hFile);
     if (usFileName.Buffer != NULL)
         RtlFreeUnicodeString(&usFileName);

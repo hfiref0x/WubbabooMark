@@ -2455,8 +2455,8 @@ NTSTATUS supVerifyFileSignature(
         wintrustData.cbStruct = sizeof(wintrustData);
         wintrustData.dwStateAction = WTD_STATEACTION_CLOSE;
         wintrustData.hWVTStateData = hWVTStateData;
-        GUID guid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-        WinVerifyTrust(NULL, &guid, &wintrustData);
+        GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+        WinVerifyTrust(NULL, &guidAction, &wintrustData);
         hWVTStateData = NULL;
     }
 

@@ -4,9 +4,9 @@
 *
 *  TITLE:       SUP.CPP
 *
-*  VERSION:     1.10
+*  VERSION:     1.11
 *
-*  DATE:        13 Jul 2025
+*  DATE:        10 Aug 2025
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -36,6 +36,7 @@ typedef struct _SUP_KNOWNDLLS_ENTRY {
 #define LDRP_MAX_MODULE_LOOP 10240
 
 LIST_ENTRY gKnownDllsHead;
+static BOOL supInitKnownDllsHeadOnce = FALSE;
 
 static const LPCSTR gPublisherAttributeObjId[] = {
     szOID_ORGANIZATION_NAME,
@@ -221,40 +222,33 @@ SIZE_T supFindUnicodeStringSubString(
     _In_ PUNICODE_STRING SubString
 )
 {
-    SIZE_T length1;
-    SIZE_T length2;
-    UNICODE_STRING string1;
-    UNICODE_STRING string2;
-    WCHAR c;
+    SIZE_T lenMain;
+    SIZE_T lenSub;
+    WCHAR c0;
     SIZE_T i;
 
-    if (SubString == NULL)
-        return 0;
-
-    length1 = String->Length / sizeof(WCHAR);
-    length2 = SubString->Length / sizeof(WCHAR);
-
-    if (length2 > length1)
+    if (SubString == NULL || String == NULL)
         return ULLONG_MAX;
 
-    if (length2 == 0)
+    lenMain = String->Length / sizeof(WCHAR);
+    lenSub = SubString->Length / sizeof(WCHAR);
+
+    if (lenSub == 0)
         return 0;
+    if (lenSub > lenMain)
+        return ULLONG_MAX;
 
-    string1.Buffer = String->Buffer;
-    string1.Length = SubString->Length - sizeof(WCHAR);
-    string2.Buffer = SubString->Buffer;
-    string2.Length = SubString->Length - sizeof(WCHAR);
-
-    c = RtlUpcaseUnicodeChar(*string2.Buffer++);
-
-    for (i = length1 - length2 + 1; i != 0; i--) {
-        if (RtlUpcaseUnicodeChar(*string1.Buffer++) == c &&
-            RtlEqualUnicodeString(&string1, &string2, TRUE))
-        {
-            return (ULONG_PTR)(string1.Buffer - String->Buffer - 1);
+    c0 = RtlUpcaseUnicodeChar(SubString->Buffer[0]);
+    for (i = 0; i <= lenMain - lenSub; i++) {
+        if (RtlUpcaseUnicodeChar(String->Buffer[i]) == c0) {
+            UNICODE_STRING m, s;
+            m.Buffer = &String->Buffer[i];
+            m.Length = (USHORT)(lenSub * sizeof(WCHAR));
+            s = *SubString;
+            if (RtlEqualUnicodeString(&m, &s, TRUE))
+                return i;
         }
     }
-
     return ULLONG_MAX;
 }
 
@@ -331,26 +325,18 @@ PVOID supGetProcessInfoVariableSize(
     PVOID buffer = NULL;
     ULONG bufferSize = PAGE_SIZE;
     NTSTATUS ntStatus;
-    ULONG returnedLength = 0;
+    ULONG returnedLength = 0, attempts = 0;
 
     if (ReturnLength)
         *ReturnLength = 0;
 
-    buffer = supHeapAlloc((SIZE_T)bufferSize);
-    if (buffer == NULL)
-        return NULL;
+    do {
+        if (buffer)
+            supHeapFree(buffer);
 
-    ntStatus = NtQueryInformationProcess(
-        NtCurrentProcess(),
-        ProcessInformationClass,
-        buffer,
-        bufferSize,
-        &returnedLength);
-
-    if (ntStatus == STATUS_INFO_LENGTH_MISMATCH) {
-        supHeapFree(buffer);
-        bufferSize = returnedLength;
         buffer = supHeapAlloc((SIZE_T)bufferSize);
+        if (buffer == NULL)
+            return NULL;
 
         ntStatus = NtQueryInformationProcess(
             NtCurrentProcess(),
@@ -358,12 +344,22 @@ PVOID supGetProcessInfoVariableSize(
             buffer,
             bufferSize,
             &returnedLength);
-    }
 
-    if (ReturnLength)
-        *ReturnLength = returnedLength;
+        if (ntStatus == STATUS_INFO_LENGTH_MISMATCH) {
+            if (returnedLength > bufferSize)
+                bufferSize = returnedLength;
+            else
+                bufferSize <<= 1;
+        }
+
+        attempts++;
+        if (bufferSize > NTQSI_MAX_BUFFER_LENGTH)
+            break;
+
+    } while (ntStatus == STATUS_INFO_LENGTH_MISMATCH && attempts < 10);
 
     if (NT_SUCCESS(ntStatus)) {
+        if (ReturnLength) *ReturnLength = returnedLength;
         return buffer;
     }
 
@@ -871,54 +867,82 @@ HRESULT supShellExecInExplorerProcess(
     _In_opt_ PCWSTR pszArguments
 )
 {
-    HRESULT hr, hr_init;
+    HRESULT hr;
+    HRESULT hrInit;
     IShellView* psv;
     IShellDispatch2* psd;
-    BSTR bstrFile, bstrArgs = NULL;
     VARIANT vtEmpty, vtArgs;
+    BOOL fUninit;
+    BSTR bstrFile;
+    BSTR bstrArgs;
 
-    hr_init = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    hr = E_FAIL;
+    hrInit = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (hrInit == RPC_E_CHANGED_MODE) {
+        fUninit = FALSE;
+    }
+    else {
+        fUninit = SUCCEEDED(hrInit);
+    }
 
-    hr = supxGetShellViewForDesktop(IID_PPV_ARGS(&psv));
-    if (SUCCEEDED(hr))
-    {
-        hr = supxGetShellDispatchFromView(psv, IID_PPV_ARGS(&psd));
-        if (SUCCEEDED(hr))
-        {
+    psv = NULL;
+    psd = NULL;
+    bstrFile = NULL;
+    bstrArgs = NULL;
+
+    if (SUCCEEDED(supxGetShellViewForDesktop(IID_PPV_ARGS(&psv)))) {
+
+        if (SUCCEEDED(supxGetShellDispatchFromView(psv, IID_PPV_ARGS(&psd)))) {
+
             bstrFile = SysAllocString(pszFile);
-            hr = bstrFile ? S_OK : E_OUTOFMEMORY;
-            if (SUCCEEDED(hr))
-            {
-                VariantInit(&vtArgs);
+            if (bstrFile) {
+
                 VariantInit(&vtEmpty);
+                VariantInit(&vtArgs);
 
                 if (pszArguments) {
-                    bstrArgs = SysAllocString(pszArguments);
-                    hr = bstrArgs ? S_OK : E_OUTOFMEMORY;
 
-                    if (SUCCEEDED(hr)) {
+                    bstrArgs = SysAllocString(pszArguments);
+                    if (bstrArgs) {
+
                         vtArgs.vt = VT_BSTR;
                         vtArgs.bstrVal = bstrArgs;
 
-                        hr = psd->ShellExecuteW(bstrFile,
-                            vtArgs, vtEmpty, vtEmpty, vtEmpty);
+                        hr = psd->ShellExecuteW(
+                            bstrFile,
+                            vtArgs,
+                            vtEmpty,
+                            vtEmpty,
+                            vtEmpty);
 
-                        SysFreeString(bstrFile);
                     }
+                    else {
+                        hr = E_OUTOFMEMORY;
+                    }
+
                 }
                 else {
 
-                    hr = psd->ShellExecuteW(bstrFile,
-                        vtEmpty, vtEmpty, vtEmpty, vtEmpty);
-
+                    hr = psd->ShellExecuteW(
+                        bstrFile,
+                        vtEmpty,
+                        vtEmpty,
+                        vtEmpty,
+                        vtEmpty);
                 }
-
             }
-            psd->Release();
+            else {
+                hr = E_OUTOFMEMORY;
+            }
         }
-        psv->Release();
     }
-    if (SUCCEEDED(hr_init)) CoUninitialize();
+
+    if (bstrArgs) SysFreeString(bstrArgs);
+    if (bstrFile) SysFreeString(bstrFile);
+    if (psd) psd->Release();
+    if (psv) psv->Release();
+    if (fUninit) CoUninitialize();
+
     return hr;
 }
 
@@ -987,15 +1011,20 @@ ULONG supxExtractSyscallNumberFromImage(
 
     ptrCode = (PBYTE)supLdrGetProcAddressEx(ImageBase, FunctionName);
 
-    if (ptrCode) {
+    __try {
+        if (ptrCode) {
 
-        if (ptrCode[0] == 0x4C &&
-            ptrCode[1] == 0x8B &&
-            (ptrCode[2] & 0xC0) == 0xC0)
-        {
-            return *(ULONG*)((BYTE*)ptrCode + 4);
+            if (ptrCode[0] == 0x4C &&
+                ptrCode[1] == 0x8B &&
+                (ptrCode[2] & 0xC0) == 0xC0)
+            {
+                return *(ULONG*)((BYTE*)ptrCode + 4);
+            }
+
         }
-
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return INVALID_SYSCALL_ID;
     }
 
     return INVALID_SYSCALL_ID;
@@ -1318,6 +1347,7 @@ ULONG supExtractSSN(
             if (pfnRoutine) {
                 return supExtractSyscallNumberFromRoutine(pfnRoutine);
             }
+
         }
         break;
     }
@@ -1729,7 +1759,7 @@ NTSTATUS supGetObjectTypesInfo(
 
     buffer = supHeapAlloc((SIZE_T)bufferSize);
     if (buffer == NULL)
-        return NULL;
+        return STATUS_MEMORY_NOT_ALLOCATED;
 
     while ((ntStatus = NtQueryObject(
         NULL,
@@ -1742,7 +1772,7 @@ NTSTATUS supGetObjectTypesInfo(
         bufferSize <<= 1;
 
         if (bufferSize > (16 * 1024 * 1024))
-            return NULL;
+            return STATUS_TOO_MANY_SECRETS;
 
         buffer = supHeapAlloc((SIZE_T)bufferSize);
     }
@@ -4141,8 +4171,22 @@ VOID supCacheKnownDllsEntries()
     OBJECT_ATTRIBUTES obja;
     UNICODE_STRING us;
     SUP_KNOWNDLLS_ENTRY* pEntry;
+    PLIST_ENTRY next;
+    SUP_KNOWNDLLS_ENTRY* tmp;
 
-    InitializeListHead(&gKnownDllsHead);
+    if (supInitKnownDllsHeadOnce == FALSE) {
+        InitializeListHead(&gKnownDllsHead);
+        supInitKnownDllsHeadOnce = TRUE;
+    }
+    else {
+        for (next = gKnownDllsHead.Flink; next != &gKnownDllsHead; ) {
+            tmp = CONTAINING_RECORD(next, SUP_KNOWNDLLS_ENTRY, ListEntry);
+            next = next->Flink;
+            RemoveEntryList(&tmp->ListEntry);
+            supHeapFree(tmp);
+        }
+    }
+    
     RtlInitUnicodeString(&us, DIRECTORY_KNOWNDLLS);
     InitializeObjectAttributes(&obja, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
     ntStatus = NtOpenDirectoryObject(&hDirectory, DIRECTORY_QUERY, &obja);

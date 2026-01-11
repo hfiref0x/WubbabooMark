@@ -1,7 +1,7 @@
 # WubbabooMark
 ## Debugger Anti-Detection Benchmark
 
-[![Build status](https://ci.appveyor.com/api/projects/status/7dc9a2naqdn3ej4y?svg=true)](https://ci.appveyor.com/project/hfiref0x/wubbaboomark)
+[![Build status](https://img.shields.io/appveyor/build/hfiref0x/wubbaboomark?logo=appveyor)](https://ci.appveyor.com/project/hfiref0x/wubbaboomark)
 ![Visitors](https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fhfiref0x%2FWubbabooMark&countColor=%23263759&style=flat)
 
 <img src="https://raw.githubusercontent.com/hfiref0x/WubbabooMark/master/Help/SeriousWubbaboo.png" width="150" />
@@ -193,7 +193,7 @@ BTC (Bitcoin): bc1qzkvtpa0053cagf35dqmpvv9k8hyrwl7krwdz84q39mcpy68y6tmqsju0g4
 
 # Authors
 
-+ (c) 2023 - 2025 WubbabooMark Project
++ (c) 2023 - 2026 WubbabooMark Project
 
 # License
 MIT

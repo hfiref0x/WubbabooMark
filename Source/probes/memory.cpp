@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       MEMORY.CPP
 *
-*  VERSION:     1.10
+*  VERSION:     1.12
 *
-*  DATE:        13 Jul 2025
+*  DATE:        20 Feb 2026
 *
 *  Stack probes.
 *
@@ -81,6 +81,13 @@ BOOL SkWsSetWalk(
     SIZE_T bufferSize = PAGE_SIZE;
 
     pws = (PMEMORY_WORKING_SET_INFORMATION)supHeapAlloc(bufferSize);
+    if (pws == NULL) {
+        SkReportNtCallRIP(STATUS_MEMORY_NOT_ALLOCATED,
+            (LPWSTR)TEXT("Cannot allocate virtual memory"),
+            (LPWSTR)TEXT("RtlAllocateHeap"),
+            NULL);
+        return FALSE;
+    }
 
     while ((ntStatus = NtQueryVirtualMemory(
         NtCurrentProcess(),
@@ -109,7 +116,7 @@ BOOL SkWsSetWalk(
     if (pws == NULL) {
         SkReportNtCallRIP(STATUS_MEMORY_NOT_ALLOCATED,
             (LPWSTR)TEXT("Cannot allocate virtual memory"),
-            (LPWSTR)TEXT("supHeapAlloc"),
+            (LPWSTR)TEXT("RtlAllocateHeap"),
             NULL);
         return FALSE;
     }
@@ -376,6 +383,13 @@ BOOL SkWsSetWatch(
             size = (256 * sizeof(PROCESS_WS_WATCH_INFORMATION_EX)) + returnLength;
 
             pWatchInfo = (PROCESS_WS_WATCH_INFORMATION_EX*)supHeapAlloc(size);
+            if (pWatchInfo == NULL) {
+                SkReportNtCallRIP(STATUS_MEMORY_NOT_ALLOCATED,
+                    (LPWSTR)TEXT("Failed to allocate memory"),
+                    (LPWSTR)TEXT("RtlAllocateHeap"),
+                    DT_WSSET_FAILED);
+                break;
+            }
 
             ntStatus = NtQueryInformationProcess(
                 NtCurrentProcess(),

@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       PROBES.H
 *
-*  VERSION:     1.00
+*  VERSION:     1.12
 *
-*  DATE:        10 Jul 2025
+*  DATE:        20 Feb 2026
 *
 *  Common header file for the program probes.
 *
@@ -97,7 +97,7 @@ typedef enum _PS_SCAN_TYPE {
     ScanTypeAppCompat
 } PS_SCAN_TYPE;
 
-#define SkiInitializeAnomalyCount() {  g_cAnomalies = 0; }
+#define SkiInitializeAnomalyCount() { InterlockedExchange((PLONG)&g_cAnomalies, 0); }
 #define SkiIncreaseAnomalyCount() { InterlockedIncrement((PLONG)&g_cAnomalies); }
 
 ULONG SkiGetAnomalyCount();
@@ -208,7 +208,7 @@ VOID SkReportDebugObject(
     _In_ BOOL IsHandlde);
 
 VOID SkReportDeviceObject(
-    _In_ LPWSTR DeviceName);
+    _In_ LPCWSTR DeviceName);
 
 VOID SkReportDriverListModification(
     _In_ ULONG ReportedLength,

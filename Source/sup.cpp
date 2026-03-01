@@ -2480,7 +2480,7 @@ NTSTATUS supVerifyFileSignature(
 
     if (hWVTStateData) {
         WINTRUST_DATA wintrustData;
-    
+
         RtlSecureZeroMemory(&wintrustData, sizeof(wintrustData));
         wintrustData.cbStruct = sizeof(wintrustData);
         wintrustData.dwStateAction = WTD_STATEACTION_CLOSE;

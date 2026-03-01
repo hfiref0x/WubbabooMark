@@ -1,12 +1,12 @@
 ﻿/*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       MAIN.CPP
 *
-*  VERSION:     1.01
+*  VERSION:     1.12
 *
-*  DATE:        14 Jul 2025
+*  DATE:        20 Feb 2026
 *
 *  CodeName:    Skilla
 *

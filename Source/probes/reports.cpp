@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       REPORTS.CPP
 *
-*  VERSION:     1.10
+*  VERSION:     1.12
 *
-*  DATE:        14 Jul 2025
+*  DATE:        20 Feb 2026
 *
 *  Probe report workers.
 *
@@ -507,14 +507,14 @@ VOID SkReportDebugObjectHandleMismatch(
 }
 
 VOID SkReportDeviceObject(
-    _In_ LPWSTR DeviceName
+    _In_ LPCWSTR DeviceName
 )
 {
     SkiIncreaseAnomalyCount();
 
     supReportEvent(evtDetection,
         (LPWSTR)TEXT("Suspicious driver device has been detected"),
-        DeviceName,
+        (LPWSTR)DeviceName,
         DT_DRIVER_DEVICE);
 }
 

@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       OBJECTS.CPP
 *
-*  VERSION:     1.10
+*  VERSION:     1.12
 *
-*  DATE:        14 Jul 2025
+*  DATE:        20 Feb 2026
 *
 *  System object handles probes.
 *
@@ -99,7 +99,7 @@ VOID SkiQueryAndValidateHandleInformation(
                 //
                 if (IsProcess) {
                     if ((HandleEntry->GrantedAccess & PROCESS_VM_WRITE) ||
-                        HandleEntry->GrantedAccess & PROCESS_SUSPEND_RESUME) 
+                        (HandleEntry->GrantedAccess & PROCESS_SUSPEND_RESUME)) 
                     {
                         SkReportSuspectHandleEntry(TRUE, HandleEntry);
                     }
@@ -301,7 +301,7 @@ BOOL SkCheckHandles(
             break;
         }
 
-        returnLength = NULL;
+        returnLength = 0;
         handleArray = (PSYSTEM_HANDLE_INFORMATION_EX)supGetSystemInfo(SystemExtendedHandleInformation, &returnLength);
         if (handleArray == NULL) {
 
@@ -456,11 +456,11 @@ BOOL SkCheckHandles(
 BOOL SkNoKernelWubbaboos()
 {
     BOOL bResult = TRUE;
-    LPWSTR lpWubbabooDevices[] = {
-        (LPWSTR)TEXT("HyperHideDrv"),
-        (LPWSTR)TEXT("kldbgdrv"),
-        (LPWSTR)TEXT("TitanHide"),
-        (LPWSTR)TEXT("HyperDbgDebuggerDevice")
+    LPCWSTR lpWubbabooDevices[] = {
+        TEXT("HyperHideDrv"),
+        TEXT("kldbgdrv"),
+        TEXT("TitanHide"),
+        TEXT("HyperDbgDebuggerDevice")
     };
 
     for (ULONG i = 0; i < RTL_NUMBER_OF(lpWubbabooDevices); i++) {

@@ -1,12 +1,12 @@
 ﻿/*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       PROBES.CPP
 *
-*  VERSION:     1.10
+*  VERSION:     1.11
 *
-*  DATE:        14 Jul 2025
+*  DATE:        22 Feb 2026
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -252,7 +252,7 @@ PPROBE_CONTEXT SkCreateContext(
         ctx->WTGetSignatureInfo = (ptrWTGetSignatureInfo)GetProcAddress(hModule, "WTGetSignatureInfo");
     }
     else {
-        SkReportNtCallRIP(ntStatus,
+        SkReportNtCallRIP(HRESULT_FROM_WIN32(GetLastError()),
             (LPWSTR)TEXT("Failed to load wintrust.dll"),
             (LPWSTR)__FUNCTIONW__,
             NULL);

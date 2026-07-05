@@ -1,0 +1,45 @@
+name: Build WubbabooMark
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+env:
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Build WubbabooMark x64
+        working-directory: ./Source
+        run: msbuild WubbabooMark.sln /m /p:Platform=x64 /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:PlatformToolset=v145
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path Package\Application | Out-Null
+
+          $exePath = "Source\output\x64\${{ env.BUILD_CONFIGURATION }}\Skilla.exe"
+
+          if (!(Test-Path $exePath)) {
+            throw "Skilla.exe not found at $exePath"
+          }
+
+          Copy-Item $exePath "Package\Application\Skilla.exe" -Force
+
+      - name: Upload WubbabooMark snapshot
+        uses: actions/upload-artifact@v6
+        with:
+          name: wubbaboo_snapshot.zip
+          path: Package\Application\*

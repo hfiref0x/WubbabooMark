@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       WINVER.CPP
 *
-*  VERSION:     1.10
+*  VERSION:     1.12
 *
-*  DATE:        14 Jul 2025
+*  DATE:        03 Jul 2026
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -262,7 +262,7 @@ PVOID SkpValidateSyscallLayoutForVersionData(
             break;
         }
 
-        if (TestBuildNumber == NT_WIN11_24H2) {
+        if (TestBuildNumber >= NT_WIN11_24H2 && TestBuildNumber <= NT_WIN11_26H2) {
             lpName = (LPCSTR)"NtAlertThreadByThreadIdEx";
             break;
         }
@@ -271,8 +271,8 @@ PVOID SkpValidateSyscallLayoutForVersionData(
         // This one could be missing in early win11 previews and dev builds as it was introduced later.
         // It doesn't matter, if you want to play this hard, okay.
         //
-        if (TestBuildNumber > NT_WIN11_24H2) {
-            lpName = (LPCSTR)"NtQuerySystemTime";
+        if (TestBuildNumber > NT_WIN11_26H2) {
+            lpName = (LPCSTR)"NtManageWobTicket";
             break;
         }
 

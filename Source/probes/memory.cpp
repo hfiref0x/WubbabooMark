@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.12
 *
-*  DATE:        20 Feb 2026
+*  DATE:        03 Jul 2026
 *
 *  Stack probes.
 *
@@ -32,10 +32,10 @@ BOOL SkpProbeForExecutable(ULONG_PTR addr)
                 probefn();
                 return TRUE;
             }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
         return FALSE;
     }
-    return FALSE;
 }
 
 VOID SkiCheckMemoryWsBlock(
@@ -127,8 +127,9 @@ BOOL SkWsSetWalk(
             (LPWSTR)TEXT("Cannot query virtual memory"),
             (LPWSTR)TEXT("NtQueryVirtualMemory"),
             (LPWSTR)TEXT("MemoryWorkingSetInformation"));
-   
-    } else {
+
+    }
+    else {
 
         for (i = 0; i < pws->NumberOfEntries; i++) {
 
@@ -163,9 +164,10 @@ BOOL SkStackWalk(
 {
     ULONG oldAnomalyCount = SkiGetAnomalyCount();
     ULONG_PTR maxAppAddress, minAppAddress;
-    ULONG_PTR myRsp, p, lowRsp = 0, highRsp = 0;
+    ULONG_PTR myRsp, lowRsp, highRsp = 0;
+    ULONG_PTR p;
+    volatile ULONG_PTR* probe;
     __volatile ULONG_PTR x;
-
     MEMORY_BASIC_INFORMATION mi;
     WCHAR szBuffer[MAX_TEXT_LENGTH];
 
@@ -177,10 +179,13 @@ BOOL SkStackWalk(
 
     for (p = myRsp; p > 0; p -= PAGE_SIZE) {
 
+        probe = (volatile ULONG_PTR*)p;
+
         __try {
-            x = *(ULONG_PTR*)p;
-            *(ULONG_PTR*)p = x;
-        } __except (EXCEPTION_EXECUTE_HANDLER) {
+            x = *probe;
+            *probe = x;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
             break;
         }
         lowRsp = p;
@@ -188,24 +193,42 @@ BOOL SkStackWalk(
 
     for (p = myRsp; p < maxAppAddress; p += PAGE_SIZE) {
 
+        probe = (volatile ULONG_PTR*)p;
+
         __try {
-            PUSH_DISABLE_WARNING(6011)
-                x = *(ULONG_PTR*)p;
-            POP_DISABLE_WARNING(6011)
-                * (ULONG_PTR*)p = x;
-        } __except (EXCEPTION_EXECUTE_HANDLER) {
+            x = *probe;
+            *probe = x;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
             break;
         }
         highRsp = p;
     }
-    highRsp += PAGE_SIZE - sizeof(ULONG_PTR);
 
-    for (p = highRsp; p >= lowRsp; p -= sizeof(ULONG_PTR)) {
+    if (highRsp != 0)
+        highRsp += PAGE_SIZE - sizeof(ULONG_PTR);
+    else
+        highRsp = myRsp;
 
-        x = *(ULONG_PTR*)p;
+    p = highRsp;
+    for (;;) {
+
+        probe = (volatile ULONG_PTR*)p;
+
+        __try {
+            PUSH_DISABLE_WARNING(28182)
+                x = *probe;
+            POP_DISABLE_WARNING(28182)
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            if (p <= lowRsp)
+                break;
+
+            p -= sizeof(ULONG_PTR);
+            continue;
+        }
+
         if ((x >= minAppAddress) && (x < maxAppAddress)) {
-
-            // if (ProbeForExecutable(x)) {
 
             SIZE_T length;
 
@@ -216,14 +239,14 @@ BOOL SkStackWalk(
                 sizeof(mi),
                 &length)))
             {
-                if ((mi.Protect == PAGE_EXECUTE) ||
-                    (mi.Protect == PAGE_EXECUTE_READ) ||
-                    (mi.Protect == PAGE_EXECUTE_READWRITE) ||
-                    (mi.Protect == PAGE_EXECUTE_WRITECOPY))
+                if ((mi.State == MEM_COMMIT) &&
+                    !(mi.Protect & PAGE_GUARD) &&
+                    (mi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
+                        PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)))
                 {
                     PLDR_DATA_TABLE_ENTRY pvTableEntry = NULL;
-
-                    if (!NT_SUCCESS(LdrFindEntryForAddress((PVOID)x, (PLDR_DATA_TABLE_ENTRY*)&pvTableEntry))) {
+                    NTSTATUS status = LdrFindEntryForAddress((PVOID)x, &pvTableEntry);
+                    if (!NT_SUCCESS(status)) {
 
                         SkiIncreaseAnomalyCount();
 
@@ -239,11 +262,20 @@ BOOL SkStackWalk(
                             DT_INJECTEDCODE,
                             x,
                             TRUE);
-
                     }
+#ifdef _DEBUG
+                    else {
+                        DbgPrint("%wZ\r\n", pvTableEntry->FullDllName);
+                    }
+#endif
                 }
             }
         }
+
+        if (p <= lowRsp)
+            break;
+
+        p -= sizeof(ULONG_PTR);
     }
 
     return (SkiGetAnomalyCount() == oldAnomalyCount);
@@ -267,10 +299,10 @@ BOOL SkiVerifyWSValueUserMode(
         sizeof(mi),
         &length)))
     {
-        if ((mi.Protect == PAGE_EXECUTE) ||
-            (mi.Protect == PAGE_EXECUTE_READ) ||
-            (mi.Protect == PAGE_EXECUTE_READWRITE) ||
-            (mi.Protect == PAGE_EXECUTE_WRITECOPY))
+        if ((mi.State == MEM_COMMIT) &&
+            !(mi.Protect & PAGE_GUARD) &&
+            (mi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
+                PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)))
         {
             ntStatus = LdrFindEntryForAddress(WsValue, (PLDR_DATA_TABLE_ENTRY*)&entry);
             if (!NT_SUCCESS(ntStatus)) {

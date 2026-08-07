@@ -1678,7 +1678,17 @@ PVOID supLdrFindImageByAddressEx(
                         DWORD effectiveSize = NtHeaders->OptionalHeader.SizeOfImage;
 
                         if (currentPeb->OSBuildNumber >= NT_WIN11_24H2) {
-                            effectiveSize += 0x1000;
+                            MEMORY_IMAGE_EXTENSION_INFORMATION extInfo = {};
+                            ntStatus = NtQueryVirtualMemory(
+                                NtCurrentProcess(),
+                                pvImageBase,
+                                MemoryImageExtensionInformation,
+                                &extInfo,
+                                sizeof(extInfo),
+                                NULL);
+                            if (NT_SUCCESS(ntStatus) && extInfo.ExtensionSize != 0) {
+                                effectiveSize += (DWORD)extInfo.ExtensionSize;
+                            }
                         }
 
                         if (IN_REGION(AddressValue, pvImageBase, effectiveSize)) {

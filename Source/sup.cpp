@@ -1674,11 +1674,17 @@ PVOID supLdrFindImageByAddressEx(
 
                     if (NT_SUCCESS(RtlImageNtHeaderEx(0, pvImageBase, ldrTableEntry->SizeOfImage, &NtHeaders))) {
                         imageBounds = (ULONG_PTR)RtlOffsetToPointer(pvImageBase, NtHeaders->OptionalHeader.SizeOfImage);
-                        if (IN_REGION(AddressValue, pvImageBase, NtHeaders->OptionalHeader.SizeOfImage)) {
+
+                        DWORD effectiveSize = NtHeaders->OptionalHeader.SizeOfImage;
+
+                        if (currentPeb->OSBuildNumber >= NT_WIN11_24H2) {
+                            effectiveSize += 0x1000;
+                        }
+
+                        if (IN_REGION(AddressValue, pvImageBase, effectiveSize)) {
                             foundBase = pvImageBase;
                             break;
                         }
-
                     }
 
                     nextEntry = nextEntry->Flink;

@@ -5735,6 +5735,7 @@ typedef enum _MEMORY_INFORMATION_CLASS {
     MemoryPhysicalContiguityInformation,
     MemoryBadInformation,
     MemoryBadInformationAllProcesses,
+    MemoryImageExtensionInformation, // 24H2 and above only
     MaxMemoryInfoClass
 } MEMORY_INFORMATION_CLASS, *PMEMORY_INFORMATION_CLASS;
 
@@ -5913,6 +5914,23 @@ typedef struct _MEMORY_WORKING_SET_EX_INFORMATION {
     } u1;
 } MEMORY_WORKING_SET_EX_INFORMATION, * PMEMORY_WORKING_SET_EX_INFORMATION;
 
+typedef enum _MEMORY_IMAGE_EXTENSION_TYPE
+{
+    MemoryImageExtensionCfgScp,
+    MemoryImageExtensionCfgEmulatedScp,
+    MemoryImageExtensionTypeMax,
+} MEMORY_IMAGE_EXTENSION_TYPE;
+
+typedef struct _MEMORY_IMAGE_EXTENSION_INFORMATION
+{
+    MEMORY_IMAGE_EXTENSION_TYPE ExtensionType; // Type of the image extension (MEMORY_IMAGE_EXTENSION_TYPE).
+    ULONG Flags;                               // Extension-specific flags.
+    PVOID ExtensionImageBaseRva;               // Relative virtual address of the extension image base.
+    SIZE_T ExtensionSize;                      // Size, in bytes, of the extension region.
+} MEMORY_IMAGE_EXTENSION_INFORMATION, * PMEMORY_IMAGE_EXTENSION_INFORMATION;
+
+
+
 #define MM_ZERO_ACCESS         0  // this value is not used.
 #define MM_READONLY            1
 #define MM_EXECUTE             2
@@ -5962,6 +5980,9 @@ typedef struct _SYSTEM_FIRMWARE_TABLE_INFORMATION {
 /*
 ** System Firmware END
 */
+
+
+
 
 //
 //  PEB/TEB

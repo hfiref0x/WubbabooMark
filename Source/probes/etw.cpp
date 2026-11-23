@@ -866,7 +866,7 @@ BOOL SkPerformEtwTrace(
 {
     UNREFERENCED_PARAMETER(Context);
 
-    BOOL bResult = FALSE;
+    BOOL bResult = FALSE, bAbnormal = FALSE;
     ULONG i, oldAnomalyCount = SkiGetAnomalyCount();
     NTSTATUS status;
     HANDLE objectHandle;
@@ -1008,12 +1008,12 @@ BOOL SkPerformEtwTrace(
     }
     __finally {
 
-        if (AbnormalTermination()) {
+        bAbnormal = AbnormalTermination();
+        if (bAbnormal) {
             supReportEvent(evtError,
                 DT_ETW_INTERNAL_ERROR,
                 DT_UNEXPECTED_BEHAVIOUR,
                 DT_EXCEPTION);
-            return FALSE;
         }
 
         if (processList)
@@ -1022,6 +1022,9 @@ BOOL SkPerformEtwTrace(
         SkEtwpFreeEvidenceList(&etwPids);
         SkEtwpFreeEvidenceList(&etwTids);
     }
+
+    if (bAbnormal)
+        return FALSE;
 
     return bResult && (SkiGetAnomalyCount() == oldAnomalyCount);
 }

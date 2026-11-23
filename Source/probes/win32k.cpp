@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       WIN32K.CPP
 *
-*  VERSION:     1.10
+*  VERSION:     1.50
 *
-*  DATE:        14 Jul 2025
+*  DATE:        22 Nov 2026
 *
 *  NtUser/NtGdi probes (Windows 10 RS4 and above ONLY).
 *
@@ -185,6 +185,7 @@ BOOL SkUserHandleTableWalk(
     _In_ PROBE_CONTEXT* Context
 )
 {
+    BOOL bAbnormal = FALSE;
     ULONG i, oldAnomalyCount = SkiGetAnomalyCount();
     HANDLEENTRY* phe;
     PVOID processList = NULL;
@@ -260,14 +261,16 @@ BOOL SkUserHandleTableWalk(
     }
     __finally {
 
-        if (AbnormalTermination()) {
+        bAbnormal = AbnormalTermination();
+        if (bAbnormal) {
             SkpWin32ExceptionRIP(DT_NTUSER_INTERNAL_ERROR);
-            return FALSE;
         }
 
         if (processList) supHeapFree(processList);
     }
 
+    if (bAbnormal)
+        return FALSE;
 
     return (SkiGetAnomalyCount() == oldAnomalyCount);
 }
@@ -285,6 +288,7 @@ BOOL SkGdiSharedHandleTableWalk(
 {
     UNREFERENCED_PARAMETER(Context);
 
+    BOOL bAbnormal = FALSE;
     ULONG oldAnomalyCount = SkiGetAnomalyCount();
     SIZE_T i, cEntries, returnLength;
     PGDI_HANDLE_ENTRY pentry;
@@ -359,12 +363,15 @@ BOOL SkGdiSharedHandleTableWalk(
         }
     }
     __finally {
-        if (AbnormalTermination()) {
+        bAbnormal = AbnormalTermination();
+        if (bAbnormal) {
             SkpWin32ExceptionRIP(DT_NTGDI_INTERNAL_ERROR);
-            return FALSE;
         }
         if (processList) supHeapFree(processList);
     }
+
+    if (bAbnormal)
+        return FALSE;
 
     return (SkiGetAnomalyCount() == oldAnomalyCount);
 }

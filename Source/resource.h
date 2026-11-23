@@ -38,6 +38,7 @@
 #define IDC_PROBES18                    1024
 #define IDC_PROBES19                    1025
 #define IDC_PROBES20                    1026
+#define IDC_PROBES21                    1027
 #define ID_FILE_SCAN                    40001
 #define ID_FILE_EXIT                    40002
 #define ID_HELP_ABOUT                   40003
@@ -50,7 +51,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        127
+#define _APS_NEXT_RESOURCE_VALUE        128
 #define _APS_NEXT_COMMAND_VALUE         40016
 #define _APS_NEXT_CONTROL_VALUE         1008
 #define _APS_NEXT_SYMED_VALUE           101

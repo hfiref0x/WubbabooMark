@@ -4,9 +4,9 @@
 *
 *  TITLE:       MEMORY.CPP
 *
-*  VERSION:     1.12
+*  VERSION:     1.50
 *
-*  DATE:        03 Jul 2026
+*  DATE:        22 Nov 2026
 *
 *  Stack probes.
 *
@@ -514,7 +514,7 @@ BOOL SkCheckProcessMemory(
 
             case MEM_IMAGE:
 
-                if (!supLdrFindImageByAddress(baseAddress, &pvImageBase)) {
+                if (!supLdrFindImageByAddress(baseAddress, &pvImageBase, Context->ReferenceNtBuildNumber)) {
                     SkReportSuspectRegion(&mbi);
                 }
 

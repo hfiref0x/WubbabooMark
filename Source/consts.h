@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       CONSTS.H
 *
-*  VERSION:     1.10
+*  VERSION:     1.50
 *
-*  DATE:        14 Jul 2025
+*  DATE:        22 Nov 2026
 *
 *  Global consts definition file.
 *
@@ -71,6 +71,7 @@
 
 #define DT_WMIQUERY (LPWSTR)TEXT("WMI Query")
 #define DT_HIDDENPROCESS (LPWSTR)TEXT("Hidden Process")
+#define DT_HIDDENTHREAD (LPWSTR)TEXT("Hidden Thread")
 #define DT_USEROBJECT (LPWSTR)TEXT("USER Object")
 #define DT_GDIOBJECT (LPWSTR)TEXT("GDI Object")
 
@@ -81,6 +82,8 @@
 #define DT_UNEXPECTED_BEHAVIOUR (LPWSTR)TEXT("Unexpected behaviour")
 #define DT_NTUSER_INTERNAL_ERROR (LPWSTR)TEXT("NTUSER internal information parsing failed")
 #define DT_NTGDI_INTERNAL_ERROR (LPWSTR)TEXT("NTGDI internal information parsing failed")
+
+#define DT_ETW_INTERNAL_ERROR (LPWSTR)TEXT("ETW internal parsing failed")
 
 #define T_CSV_FILE_FILTER TEXT("CSV Files\0*.csv\0\0")
 

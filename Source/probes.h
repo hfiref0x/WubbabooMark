@@ -4,9 +4,9 @@
 *
 *  TITLE:       PROBES.H
 *
-*  VERSION:     1.12
+*  VERSION:     1.50
 *
-*  DATE:        20 Feb 2026
+*  DATE:        22 Nov 2026
 *
 *  Common header file for the program probes.
 *
@@ -42,7 +42,8 @@ typedef struct _PROBE_SETTINGS {
             ULONG WalkGdiSharedHandleTable : 1;
             ULONG CheckBootConfiguration : 1;
             ULONG CheckProcessMemory : 1;
-            ULONG Reserved : 12;
+            ULONG EtwTrace : 1;
+            ULONG Reserved : 11;
         };
     };
 } PROBE_SETTINGS, * PPROBE_SETTINGS;
@@ -67,6 +68,7 @@ typedef struct _PROBE_SETTINGS {
 #define PROBE_FLAGS_WALK_GDISHAREDHANDLETABLE   (0x20000) 
 #define PROBE_FLAGS_CHECK_BCD                   (0x40000)
 #define PROBE_FLAGS_CHECK_PROCESS_MEMORY        (0x80000)
+#define PROBE_FLAGS_ENABLE_ETW_PROBES           (0x100000)
 
 typedef struct _PROBE_STARTUP_INFO {
     HWND MainWindow;
@@ -310,4 +312,7 @@ BOOL SkGdiSharedHandleTableWalk(
 BOOL SkTestBootConfiguration();
 
 BOOL SkCheckProcessMemory(
+    _In_ PPROBE_CONTEXT Context);
+
+BOOL SkPerformEtwTrace(
     _In_ PPROBE_CONTEXT Context);

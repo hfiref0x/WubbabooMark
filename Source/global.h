@@ -4,9 +4,9 @@
 *
 *  TITLE:       GLOBAL.H
 *
-*  VERSION:     1.12
+*  VERSION:     1.50
 *
-*  DATE:        03 Jul 2026
+*  DATE:        22 Nov 2026
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -56,6 +56,7 @@
 #pragma comment(lib, "wbemuuid.lib")
 #pragma comment(lib, "wintrust.lib")
 #pragma comment(lib, "crypt32.lib")
+#pragma comment(lib, "tdh.lib")
 
 #if defined(__cplusplus)
 #include <malloc.h>
@@ -75,6 +76,9 @@
 #include <wintrust.h>
 #include <mscat.h>
 #include <Softpub.h>
+#include <evntrace.h>
+#include <evntcons.h>
+#include <tdh.h>
 
 //
 // Main window listview.
@@ -83,6 +87,8 @@ extern HWND hwndList;
 extern HWND hwndStatusBar;
 extern ULONG g_cAnomalies;
 extern volatile LONG gbScanRunning;
+
+#define EVENT_DESCRIPTOR_DEF
 
 #include "consts.h"
 #include "ntos.h"
@@ -107,9 +113,10 @@ extern "C" {
 #endif
 
 #define PROGRAM_NAME L"WubbabooMark"
-#define SK_VERSION_MAJOR 1
-#define SK_VERSION_MINOR 1
-#define SK_VERSION_BUILD 2607 
+#define SK_VERSION_MAJOR    1
+#define SK_VERSION_MINOR    5
+#define SK_VERSION_REVISION 0
+#define SK_VERSION_BUILD    2611 
 
 #define PUSH_DISABLE_WARNING(Warning) \
   __pragma(warning(push)) \

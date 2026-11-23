@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       SUP.H
 *
-*  VERSION:     1.11
+*  VERSION:     1.50
 *
-*  DATE:        10 Aug 2025
+*  DATE:        22 Nov 2026
 *
 *  Common header file for the program support routines.
 *
@@ -371,10 +371,12 @@ LPVOID supLdrGetProcAddressEx(
 
 PVOID supLdrFindImageByAddress(
     _In_opt_ PVOID AddressValue,
-    _Out_ PVOID* ImageBase);
+    _Out_ PVOID* ImageBase,
+    _In_ ULONG NtBuildNumber);
 
 PVOID supLdrFindImageByAddressEx(
     _In_ BOOL LockLoader,
+    _In_ ULONG NtBuildNumber,
     _In_opt_ PVOID AddressValue,
     _Out_ PVOID* ImageBase);
 

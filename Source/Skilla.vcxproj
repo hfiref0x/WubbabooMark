@@ -126,6 +126,7 @@
     <ClCompile Include="probes\bootcfg.cpp" />
     <ClCompile Include="probes\common.cpp" />
     <ClCompile Include="probes\debugger.cpp" />
+    <ClCompile Include="probes\etw.cpp" />
     <ClCompile Include="probes\handletrace.cpp" />
     <ClCompile Include="probes\modules.cpp" />
     <ClCompile Include="probes\objects.cpp" />

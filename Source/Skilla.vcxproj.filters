@@ -79,6 +79,9 @@
     <ClCompile Include="probes\handletrace.cpp">
       <Filter>Source\probes</Filter>
     </ClCompile>
+    <ClCompile Include="probes\etw.cpp">
+      <Filter>Source\probes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="global.h">

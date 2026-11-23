@@ -4,9 +4,9 @@
 *
 *  TITLE:       WINVER.CPP
 *
-*  VERSION:     1.12
+*  VERSION:     1.50
 *
-*  DATE:        03 Jul 2026
+*  DATE:        22 Nov 2026
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -418,7 +418,7 @@ BOOL SkVerifyWinVersion(
                         }
                         else {
                             buildNumberMin = NT_WIN11_21H2;
-                            buildNumberMax = NT_WIN11_24H2;
+                            buildNumberMax = NT_WIN11_25H2;
                         }
                     }
                     else {

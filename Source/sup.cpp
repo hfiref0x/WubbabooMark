@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       SUP.CPP
 *
-*  VERSION:     1.11
+*  VERSION:     1.50
 *
-*  DATE:        10 Aug 2025
+*  DATE:        22 Nov 2026
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -1593,12 +1593,12 @@ ULONG supEnumServiceExports(
 */
 PVOID supLdrFindImageByAddressEx(
     _In_ BOOL LockLoader,
+    _In_ ULONG NtBuildNumber,
     _In_opt_ PVOID AddressValue,
     _Out_ PVOID* ImageBase
 )
 {
-    ULONG_PTR imageBounds;
-
+    BOOL addressInImage;
     PLDR_DATA_TABLE_ENTRY ldrTableEntry;
     PLIST_ENTRY listHead;
     PLIST_ENTRY nextEntry;
@@ -1673,12 +1673,14 @@ PVOID supLdrFindImageByAddressEx(
                     pvImageBase = ldrTableEntry->DllBase;
 
                     if (NT_SUCCESS(RtlImageNtHeaderEx(0, pvImageBase, ldrTableEntry->SizeOfImage, &NtHeaders))) {
-                        imageBounds = (ULONG_PTR)RtlOffsetToPointer(pvImageBase, NtHeaders->OptionalHeader.SizeOfImage);
 
-                        DWORD effectiveSize = NtHeaders->OptionalHeader.SizeOfImage;
+                        addressInImage = IN_REGION(AddressValue, pvImageBase, NtHeaders->OptionalHeader.SizeOfImage);
 
-                        if (currentPeb->OSBuildNumber >= NT_WIN11_24H2) {
-                            MEMORY_IMAGE_EXTENSION_INFORMATION extInfo = {};
+                        if (!addressInImage && NtBuildNumber >= NT_WIN11_24H2) {
+
+                            MEMORY_IMAGE_EXTENSION_INFORMATION extInfo;
+                            RtlSecureZeroMemory(&extInfo, sizeof(extInfo));
+
                             ntStatus = NtQueryVirtualMemory(
                                 NtCurrentProcess(),
                                 pvImageBase,
@@ -1686,12 +1688,20 @@ PVOID supLdrFindImageByAddressEx(
                                 &extInfo,
                                 sizeof(extInfo),
                                 NULL);
+
                             if (NT_SUCCESS(ntStatus) && extInfo.ExtensionSize != 0) {
-                                effectiveSize += (DWORD)extInfo.ExtensionSize;
+
+                                ULONG_PTR imageBase = (ULONG_PTR)pvImageBase;
+                                ULONG_PTR extensionRva = (ULONG_PTR)extInfo.ExtensionImageBaseRva;
+                                
+                                if (extensionRva <= (~(ULONG_PTR)0 - imageBase)) {
+                                    PVOID extensionBase = (PVOID)(imageBase + extensionRva);
+                                    addressInImage = IN_REGION(AddressValue, extensionBase, extInfo.ExtensionSize);
+                                }
                             }
                         }
 
-                        if (IN_REGION(AddressValue, pvImageBase, effectiveSize)) {
+                        if (addressInImage) {
                             foundBase = pvImageBase;
                             break;
                         }
@@ -1725,10 +1735,11 @@ PVOID supLdrFindImageByAddressEx(
 */
 PVOID supLdrFindImageByAddress(
     _In_opt_ PVOID AddressValue,
-    _Out_ PVOID* ImageBase
+    _Out_ PVOID* ImageBase,
+    _In_ ULONG NtBuildNumber
 )
 {
-    return supLdrFindImageByAddressEx(TRUE, AddressValue, ImageBase);
+    return supLdrFindImageByAddressEx(TRUE, NtBuildNumber, AddressValue, ImageBase);
 }
 
 /*

@@ -4,9 +4,9 @@
 *
 *  TITLE:       MAIN.CPP
 *
-*  VERSION:     1.12
+*  VERSION:     1.50
 *
-*  DATE:        20 Feb 2026
+*  DATE:        22 Nov 2026
 *
 *  CodeName:    Skilla
 *
@@ -129,7 +129,8 @@ VOID SettingsReadWrite(
         { IDC_PROBES17, PROBE_FLAGS_WALK_USERHANDLETABLE },
         { IDC_PROBES18, PROBE_FLAGS_WALK_GDISHAREDHANDLETABLE },
         { IDC_PROBES19, PROBE_FLAGS_CHECK_BCD },
-        { IDC_PROBES20, PROBE_FLAGS_CHECK_PROCESS_MEMORY }
+        { IDC_PROBES20, PROBE_FLAGS_CHECK_PROCESS_MEMORY },
+        { IDC_PROBES21, PROBE_FLAGS_ENABLE_ETW_PROBES }
     };
 
     PROBE_SETTINGS probeSettings;
@@ -258,7 +259,7 @@ VOID MainWindowSetViewReady()
     HIMAGELIST hImageList;
     LVCOLUMNS_DATA columnData[] =
     {
-        { (LPWSTR)TEXT("Event"), 360, LVCFMT_LEFT,  I_IMAGENONE },
+        { (LPWSTR)TEXT("Event"), 370, LVCFMT_LEFT,  I_IMAGENONE },
         { (LPWSTR)TEXT("Description"), 200, LVCFMT_LEFT, I_IMAGENONE },
         { (LPWSTR)TEXT("Anomaly Type"), 150, LVCFMT_LEFT, I_IMAGENONE }
     };

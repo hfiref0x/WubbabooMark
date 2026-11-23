@@ -4,9 +4,9 @@
 *
 *  TITLE:       PROBES.CPP
 *
-*  VERSION:     1.11
+*  VERSION:     1.50
 *
-*  DATE:        22 Feb 2026
+*  DATE:        22 Nov 2026
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -144,15 +144,16 @@ NTSTATUS SkValidateClientInfo(
     PUNICODE_STRING pusFileName;
 
     pusFileName = (PUNICODE_STRING)supGetProcessInfoVariableSize(ProcessImageFileName, &returnLength);
-    if (pusFileName) {
-        ntStatus = supMapImageNoExecute(pusFileName, &pvImageBase);
-        if (NT_SUCCESS(ntStatus)) {
-            ntStatus = NtAreMappedFilesTheSame(Peb->ImageBaseAddress, pvImageBase);
-            NtUnmapViewOfSection(NtCurrentProcess(),
-                pvImageBase);
-        }
-        supHeapFree(pusFileName);
+    if (pusFileName == NULL)
+        return STATUS_UNSUCCESSFUL;
+
+    ntStatus = supMapImageNoExecute(pusFileName, &pvImageBase);
+    if (NT_SUCCESS(ntStatus)) {
+        ntStatus = NtAreMappedFilesTheSame(Peb->ImageBaseAddress, pvImageBase);
+        NtUnmapViewOfSection(NtCurrentProcess(),pvImageBase);
     }
+    supHeapFree(pusFileName);
+
     return ntStatus;
 }
 
@@ -547,6 +548,14 @@ DWORD SkpProbeThread(
         if (gProbeContext->Settings.CheckProcessMemory) {
             if (SkCheckProcessMemory(gProbeContext))
                 REPORT_TEST_PASSED(TEXT("Testing->Process Memory Regions"));
+        }
+
+        //
+        // Perform ETW trace.
+        //
+        if (gProbeContext->Settings.EtwTrace) {
+            if (SkPerformEtwTrace(gProbeContext))
+                REPORT_TEST_PASSED(TEXT("Testing->ETW Trace (Win32k)"));
         }
 
         ULONG count = SkiGetAnomalyCount();

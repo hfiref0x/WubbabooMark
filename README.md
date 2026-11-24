@@ -84,7 +84,7 @@ Windows 11 preview/developer builds WARNING: since this program relies on comple
   * Walk UserHandleTable to find objects whose owners are invisible to client API calls
 * Enumerate NtGdi objects
   * Walk GdiSharedHandleTable to find objects whose owners are invisible to client API calls
-* Win32k ETW cross-verification (requires client elevation on Windows 11 26H2+)
+* Win32k ETW cross-verification (requires client elevation on Windows 11 24H2+)
   * Start a private real-time ETW session for the Microsoft-Windows-Win32k provider
   * Generate Win32k activity with a system-wide WM_NULL broadcast
   * Collect PID/TID references from event headers and event payload properties

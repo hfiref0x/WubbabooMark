@@ -30,8 +30,8 @@ Windows 11 preview/developer builds WARNING: since this program relies on comple
 
 * Common set of tests
   * Presence of Windows policy allowing custom kernel signers
-  * Detection of Windows kernel debugger by NtSystemDebugControl behavior.
-  * Check for unnecessary process privileges enablement  
+  * Detection of Windows kernel debugger by NtSystemDebugControl behavior
+  * Check for unnecessary process privileges enablement
 * Process Environment Block (PEB) Loader entries verification
   * Must be all authenticode signed, have valid names
 * Loaded Kernel Modules verification
@@ -43,8 +43,11 @@ Windows 11 preview/developer builds WARNING: since this program relies on comple
   * Detect l33t and other BS changes
   * Cross-compare version information from several system modules that are in KnownDlls
   * Cross-compare version information from PEB with data obtained through WMI
+  * Cross-compare PEB build number with ntdll cached version data
+  * Cross-compare reported build number with the kernel NtBuildNumber export (enablement-package family aware)
   * Validate system call (syscall) layout for PEB version
   * Validate system build number acceptable range
+  * Validate build number against the reported major/minor version and product SKU (client/server)
 * Running Processes
   * Check if process name is in blacklist
   * Cross-compare Native API query result with WMI data to detect processes hidden from the client
@@ -52,7 +55,7 @@ Windows 11 preview/developer builds WARNING: since this program relies on comple
   * Check client against console host information
   * Application Compatibility (AppCompat) parent information
 * Client Threads
-  * Verify that client threads' instruction pointers belong to visible modules 
+  * Verify that client threads' instruction pointers belong to visible modules
 * NTDLL mapping validation
   * Map NTDLL using several methods and cross-compare results
 * Examine program stack
@@ -80,7 +83,14 @@ Windows 11 preview/developer builds WARNING: since this program relies on comple
 * Enumerate NtUser objects
   * Walk UserHandleTable to find objects whose owners are invisible to client API calls
 * Enumerate NtGdi objects
-  * Walk GdiSharedHandleTable to find objects whose owners are invisible to client API calls 
+  * Walk GdiSharedHandleTable to find objects whose owners are invisible to client API calls
+* Win32k ETW cross-verification (requires client elevation on Windows 11 26H2+)
+  * Start a private real-time ETW session for the Microsoft-Windows-Win32k provider
+  * Generate Win32k activity with a system-wide WM_NULL broadcast
+  * Collect PID/TID references from event headers and event payload properties
+  * Detect processes referenced by Win32k but invisible to client process enumeration
+  * Detect threads referenced by Win32k that are not owned by any client-visible process
+  * Confirm unlisted entities via direct kernel calls (NtOpenProcess/NtOpenThread) to filter out transient processes/threads
 * Enumerate Boot Configuration Data (That one requires client elevation)
   * Search for option enablements: TestMode, WinPEMode, DisableIntegrityChecks, KernelDebugger
 * Scan process memory regions

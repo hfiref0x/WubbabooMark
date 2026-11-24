@@ -485,6 +485,35 @@ VOID WINAPI SkEtwpWin32kEventCallback(
 }
 
 /*
+* SkEtwpInitSessionProperties
+*
+* Purpose:
+*
+* (Re)initialize the EVENT_TRACE_PROPERTIES buffer for StartTrace.
+*
+*/
+static VOID SkEtwpInitSessionProperties(
+    _Out_writes_bytes_(PropertiesSize) PBYTE Buffer,
+    _In_ ULONG PropertiesSize
+)
+{
+    PEVENT_TRACE_PROPERTIES properties = (PEVENT_TRACE_PROPERTIES)Buffer;
+
+    RtlSecureZeroMemory(Buffer, PropertiesSize);
+
+    properties->Wnode.BufferSize = PropertiesSize;
+    properties->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
+    properties->Wnode.Guid = SkEtwp_SessionGuid;
+    properties->Wnode.ClientContext = 1; // QPC
+    properties->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
+    properties->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
+
+    StringCchCopy((PWSTR)RtlOffsetToPointer(Buffer, properties->LoggerNameOffset),
+        RTL_NUMBER_OF(SkEtwp_SessionName),
+        SkEtwp_SessionName);
+}
+
+/*
 * SkEtwpStartSession
 *
 * Purpose:
@@ -492,7 +521,7 @@ VOID WINAPI SkEtwpWin32kEventCallback(
 * Initializes and starts a real-time ETW trace session for Win32k.
 *
 */
-BOOL SkEtwpStartSession(
+ULONG SkEtwpStartSession(
     _Inout_ PSK_ETW_COLLECTOR_CONTEXT Context
 )
 {
@@ -501,27 +530,16 @@ BOOL SkEtwpStartSession(
     PEVENT_TRACE_PROPERTIES properties;
 
     if (Context == NULL)
-        return FALSE;
+        return ERROR_INVALID_PARAMETER;
 
     propertiesSize = SKETWP_SESSION_PROPERTIES_SIZE;
     buffer = (PBYTE)supHeapAlloc(propertiesSize);
     if (buffer == NULL)
-        return FALSE;
+        return ERROR_NOT_ENOUGH_MEMORY;
 
     properties = (PEVENT_TRACE_PROPERTIES)buffer;
 
-    RtlSecureZeroMemory(properties, propertiesSize);
-
-    properties->Wnode.BufferSize = propertiesSize;
-    properties->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
-    properties->Wnode.Guid = SkEtwp_SessionGuid;
-    properties->Wnode.ClientContext = 1;
-    properties->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
-    properties->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
-
-    StringCchCopy((PWSTR)RtlOffsetToPointer(buffer, properties->LoggerNameOffset),
-        RTL_NUMBER_OF(SkEtwp_SessionName),
-        SkEtwp_SessionName);
+    SkEtwpInitSessionProperties(buffer, propertiesSize);
 
     status = StartTrace(&Context->SessionHandle,
         SkEtwp_SessionName,
@@ -536,6 +554,8 @@ BOOL SkEtwpStartSession(
 
         Context->SessionHandle = 0;
 
+        SkEtwpInitSessionProperties(buffer, propertiesSize);
+
         status = StartTrace(&Context->SessionHandle,
             SkEtwp_SessionName,
             properties);
@@ -543,7 +563,7 @@ BOOL SkEtwpStartSession(
 
     if (status != ERROR_SUCCESS) {
         supHeapFree(buffer);
-        return FALSE;
+        return status;
     }
 
     status = EnableTraceEx2(Context->SessionHandle,
@@ -563,11 +583,11 @@ BOOL SkEtwpStartSession(
         Context->SessionHandle = 0;
 
         supHeapFree(buffer);
-        return FALSE;
+        return status;
     }
 
     supHeapFree(buffer);
-    return TRUE;
+    return ERROR_SUCCESS;
 }
 
 /*
@@ -727,16 +747,16 @@ BOOL SkEtwpBroadcastActivity(VOID)
 * Orchestrates the ETW session lifecycle to collect PID/TID evidence.
 *
 */
-BOOL SkEtwpCollectWin32kEvidence(
+ULONG SkEtwpCollectWin32kEvidence(
     _Out_ PSK_ETW_EVIDENCE_LIST PidList,
     _Out_ PSK_ETW_EVIDENCE_LIST TidList
 )
 {
-    BOOL bResult = FALSE;
+    ULONG status;
     SK_ETW_COLLECTOR_CONTEXT context;
 
     if (PidList == NULL || TidList == NULL)
-        return FALSE;
+        return ERROR_INVALID_PARAMETER;
 
     PidList->Count = 0;
     PidList->Capacity = 0;
@@ -748,26 +768,35 @@ BOOL SkEtwpCollectWin32kEvidence(
 
     RtlSecureZeroMemory(&context, sizeof(context));
     context.TraceHandle = INVALID_PROCESSTRACE_HANDLE;
+    status = ERROR_SUCCESS;
 
     do {
 
-        if (!SkEtwpStartSession(&context))
+        status = SkEtwpStartSession(&context);
+        if (status != ERROR_SUCCESS)
             break;
 
-        if (!SkEtwpStartConsumer(&context))
+        if (!SkEtwpStartConsumer(&context)) {
+            status = GetLastError();
+            if (status == ERROR_SUCCESS)
+                status = ERROR_GEN_FAILURE;
             break;
+        }
 
-        if (!SkEtwpBroadcastActivity())
+        if (!SkEtwpBroadcastActivity()) {
+            status = GetLastError();
+            if (status == ERROR_SUCCESS)
+                status = ERROR_GEN_FAILURE;
             break;
+        }
 
         Sleep(1000);
-        bResult = TRUE;
 
     } while (FALSE);
 
     SkEtwpStopSession(&context);
 
-    if (bResult) {
+    if (status == ERROR_SUCCESS) {
 
         *PidList = context.Pids;
         *TidList = context.Tids;
@@ -784,7 +813,7 @@ BOOL SkEtwpCollectWin32kEvidence(
     SkEtwpFreeEvidenceList(&context.Pids);
     SkEtwpFreeEvidenceList(&context.Tids);
 
-    return bResult;
+    return status;
 }
 
 /*
@@ -867,7 +896,7 @@ BOOL SkPerformEtwTrace(
     UNREFERENCED_PARAMETER(Context);
 
     BOOL bResult = FALSE, bAbnormal = FALSE;
-    ULONG i, oldAnomalyCount = SkiGetAnomalyCount();
+    ULONG i, etwStatus, oldAnomalyCount = SkiGetAnomalyCount();
     NTSTATUS status;
     HANDLE objectHandle;
     PVOID processList = NULL;
@@ -884,9 +913,35 @@ BOOL SkPerformEtwTrace(
         // Collect PIDs and TIDs observed by Win32k ETW during the
         // WM_NULL broadcast window.
         //
-        if (!SkEtwpCollectWin32kEvidence(&etwPids, &etwTids)) {
+        etwStatus = SkEtwpCollectWin32kEvidence(&etwPids, &etwTids);
+        if (etwStatus != ERROR_SUCCESS) {
 
-            SkReportNtCallRIP(STATUS_UNSUCCESSFUL,
+            //
+            // Starting a real-time ETW session requires an elevated token on
+            // Windows 11 24H2+.
+            //
+            if ((etwStatus == ERROR_ACCESS_DENIED ||
+                etwStatus == ERROR_PRIVILEGE_NOT_HELD) &&
+                !Context->IsClientElevated)
+            {
+                WCHAR szDetails[MAX_TEXT_LENGTH];
+                StringCchPrintf(szDetails, RTL_NUMBER_OF(szDetails),
+                    TEXT("ETW session needs elevation (build %lu, error %lu); probe skipped"),
+                    NtCurrentPeb()->OSBuildNumber,
+                    etwStatus);
+
+                supReportEvent(evtWarning,
+                    (LPWSTR)TEXT("Win32k ETW probe skipped: elevation required"),
+                    szDetails,
+                    DT_ETW_INTERNAL_ERROR);
+
+                __leave;
+            }
+
+            SkReportNtCallRIP(
+                (etwStatus == ERROR_ACCESS_DENIED) ? STATUS_ACCESS_DENIED :
+                (etwStatus == ERROR_PRIVILEGE_NOT_HELD) ? STATUS_PRIVILEGE_NOT_HELD :
+                STATUS_UNSUCCESSFUL,
                 (LPWSTR)TEXT("Cannot collect Win32k ETW events"),
                 (LPWSTR)TEXT("SkEtwpCollectWin32kEvidence"),
                 (LPWSTR)TEXT("Win32kGuiDiscoverySession"));

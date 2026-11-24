@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.50
 *
-*  DATE:        22 Nov 2026
+*  DATE:        23 Nov 2026
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -224,7 +224,7 @@ PPROBE_CONTEXT SkCreateContext(
             NULL);
     }
     else {
-        ctx->Win10FeaturePack = IS_WIN10_FEATURE_PACK_RANGE(ctx->ReferenceNtBuildNumber);
+        ctx->IsFeaturePack = IS_FEATURE_PACK_RANGE(ctx->ReferenceNtBuildNumber);
     }
 
     ctx->SelfBase = Peb->ImageBaseAddress;

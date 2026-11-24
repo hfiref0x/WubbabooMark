@@ -263,11 +263,6 @@ BOOL SkStackWalk(
                             x,
                             TRUE);
                     }
-#ifdef _DEBUG
-                    else {
-                        DbgPrint("%wZ\r\n", pvTableEntry->FullDllName);
-                    }
-#endif
                 }
             }
         }
@@ -282,11 +277,12 @@ BOOL SkStackWalk(
 }
 
 BOOL SkiVerifyWSValueUserMode(
+    _In_ PPROBE_CONTEXT Context,
     _In_ PVOID WsValue
 )
 {
     NTSTATUS ntStatus;
-    PLDR_DATA_TABLE_ENTRY entry;
+    PVOID entry = NULL;
     WCHAR szText[MAX_TEXT_LENGTH];
     MEMORY_BASIC_INFORMATION mi;
 
@@ -304,8 +300,8 @@ BOOL SkiVerifyWSValueUserMode(
             (mi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
                 PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)))
         {
-            ntStatus = LdrFindEntryForAddress(WsValue, (PLDR_DATA_TABLE_ENTRY*)&entry);
-            if (!NT_SUCCESS(ntStatus)) {
+            ntStatus = supLdrFindImageByAddress(WsValue, &entry, Context->ReferenceNtBuildNumber);
+            if (!NT_SUCCESS(ntStatus) || (entry == NULL)) {
 
                 SkiIncreaseAnomalyCount();
 
@@ -453,10 +449,10 @@ BOOL SkWsSetWatch(
                 if (pWatchInfo[i].BasicInfo.FaultingPc && pWatchInfo[i].BasicInfo.FaultingVa) {
 
                     if ((ULONG_PTR)pWatchInfo[i].BasicInfo.FaultingPc < maxAppAddress)
-                        SkiVerifyWSValueUserMode(pWatchInfo[i].BasicInfo.FaultingPc);
+                        SkiVerifyWSValueUserMode(Context, pWatchInfo[i].BasicInfo.FaultingPc);
 
                     if ((ULONG_PTR)pWatchInfo[i].BasicInfo.FaultingVa < maxAppAddress)
-                        SkiVerifyWSValueUserMode(pWatchInfo[i].BasicInfo.FaultingVa);
+                        SkiVerifyWSValueUserMode(Context, pWatchInfo[i].BasicInfo.FaultingVa);
                 }
 
             }
@@ -485,6 +481,7 @@ BOOL SkCheckProcessMemory(
 {
     UNREFERENCED_PARAMETER(Context);
     ULONG oldAnomalyCount = SkiGetAnomalyCount();
+    NTSTATUS ntStatus;
     PVOID baseAddress = NULL;
     MEMORY_BASIC_INFORMATION mbi;
 
@@ -514,7 +511,8 @@ BOOL SkCheckProcessMemory(
 
             case MEM_IMAGE:
 
-                if (!supLdrFindImageByAddress(baseAddress, &pvImageBase, Context->ReferenceNtBuildNumber)) {
+                ntStatus = supLdrFindImageByAddress(baseAddress, &pvImageBase, Context->ReferenceNtBuildNumber);
+                if (!NT_SUCCESS(ntStatus) || (pvImageBase == NULL)) {
                     SkReportSuspectRegion(&mbi);
                 }
 

@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2023 - 2025
+*  (C) COPYRIGHT AUTHORS, 2023 - 2026
 *
 *  TITLE:       COMMON.CPP
 *
-*  VERSION:     1.10
+*  VERSION:     1.50
 *
-*  DATE:        14 Jul 2025
+*  DATE:        23 Nov 2026
 *
 *  Common probes.
 *
@@ -40,7 +40,7 @@ BOOL SkIsCustomKernelSignersPolicyEnabled()
             SkiIncreaseAnomalyCount();
             supReportEvent(evtDetection,
                 (LPWSTR)TEXT("Unsafe CI policy is enabled"),
-                NULL,
+                (LPWSTR)TEXT("CustomKernelSigners"),
                 DT_UNSAFE_CIPOLICY);
 
             return FALSE;

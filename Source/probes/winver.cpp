@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.50
 *
-*  DATE:        22 Nov 2026
+*  DATE:        23 Nov 2026
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -108,7 +108,7 @@ HRESULT SkpValidateVersionDataWMI(
         while ((hr = enumWbem->Next(WBEM_INFINITE, 1, &result, &returnedCount)) == S_OK) {
 
             HRESULT hr2, hr3;
-                
+
             hr2 = result->Get(L"BuildNumber", 0, &vtBuildNumber, 0, 0);
 
             if (SUCCEEDED(hr2)) {
@@ -287,6 +287,67 @@ PVOID SkpValidateSyscallLayoutForVersionData(
 }
 
 /*
+* SkpIsBuildAcceptableForVersion
+*
+* Purpose:
+*
+* Check that the build number is valid for the reported major/minor version.
+* SKU (client/server) association is a separate concern, handled elsewhere.
+*
+*/
+static BOOL SkpIsBuildAcceptableForVersion(
+    _In_ ULONG MajorVersion,
+    _In_ ULONG MinorVersion,
+    _In_ ULONG BuildNumber
+)
+{
+    switch (MajorVersion) {
+    case 6:
+        switch (MinorVersion) {
+        case 1: // Windows 7
+            return (BuildNumber == NT_WIN7_RTM || BuildNumber == NT_WIN7_SP1);
+        case 2: // Windows 8
+            return (BuildNumber == NT_WIN8_RTM);
+        case 3: // Windows 8.1
+            return (BuildNumber == NT_WIN8_BLUE);
+        default: // 6.0 (Vista) unsupported, 6.4 pre-release
+            return FALSE;
+        }
+    case 10:
+        if (MinorVersion != 0) return FALSE; // 10.x always reports 10.0
+        return (BuildNumber >= NT_WIN10_THRESHOLD1 &&
+            IS_KNOWN_WINDOWS_BUILD(BuildNumber));
+    default:
+        return FALSE;
+    }
+}
+
+//
+// SkpExpectedKernelBaseBuild
+// 
+// Purpose: 
+// 
+// Map a reported build to its expected kernel base.
+// The kernel's compiled NtBuildNumber is the family BASE build, never an
+// enablement "fake" build.
+//
+ULONG SkpExpectedKernelBaseBuild(
+    _In_ ULONG ReportedBuild
+)
+{
+    if (IS_WIN10_19H_FEATURE_PACK_RANGE(ReportedBuild))
+        return NT_WIN10_19H1;  // 18362
+    if (IS_WIN10_FEATURE_PACK_RANGE(ReportedBuild))
+        return NT_WIN10_20H1;  // 19041
+    if (IS_WIN11_NI_FEATURE_PACK_RANGE(ReportedBuild))
+        return NT_WIN11_22H2;  // 22621
+    if (IS_WIN11_GE_FEATURE_PACK_RANGE(ReportedBuild))
+        return NT_WIN11_24H2;  // 26100
+
+    return ReportedBuild; // real (non-eKB) build is its own base
+}
+
+/*
 * SkVerifyWinVersion
 *
 * Purpose:
@@ -310,12 +371,11 @@ BOOL SkVerifyWinVersion(
         { L"combase.dll", 0 }
     };
 
-    BOOL bRecognized = TRUE;
+    BOOL bRecognized = TRUE, bIsServer;
     ULONG oldAnomalyCount = SkiGetAnomalyCount();
     ULONG testBuildNumber = NtCurrentPeb()->OSBuildNumber;
 
     ULONG majorVersion = 0, minorVersion = 0, buildNumber = 0;
-    ULONG buildNumberMin = 0, buildNumberMax = 0;
 
     //
     // Cross-check of system component versions.
@@ -343,125 +403,117 @@ BOOL SkVerifyWinVersion(
     //
 
     RtlGetNtVersionNumbers(&majorVersion, &minorVersion, &buildNumber);
+    buildNumber &= 0xffff;
 
-    if (majorVersion < 6 || majorVersion > 10) {
+    //
+    // PEB vs ntdll cached build cross-check.
+    //
+    if (buildNumber != testBuildNumber) {
+        SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows build number (PEB/Rtl mismatch)"),
+            majorVersion,
+            minorVersion,
+            testBuildNumber,
+            DT_BUILDNUMBER);
+        bRecognized = FALSE;
+    }
 
-        SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows major version"),
+    //
+    // Validate that the build number is acceptable for the reported major/minor.
+    //
+    if (!SkpIsBuildAcceptableForVersion(majorVersion, minorVersion, buildNumber)) {
+        SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows version (build invalid for major/minor)"),
             majorVersion,
             minorVersion,
             buildNumber,
             DT_WINVERSION);
-
+        bRecognized = FALSE;
     }
 
-    if (minorVersion > 3) {
+    //
+    // ntdll resource build vs PEB build. Enablement packages keep the base build
+    // in file resources (18362->18363, 19041->19045, 22621->22631, 26100->26300),
+    // so allow same feature pack family drift.
+    //
+    if (DllData[0].VersionBuildNumber != 0 &&
+        DllData[0].VersionBuildNumber != testBuildNumber &&
+        !IS_SAME_FEATURE_PACK_FAMILY(DllData[0].VersionBuildNumber, testBuildNumber)) {
 
-        //
-        // No such exists.
-        //
-
-        SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows minor version"),
+        SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows build number (ntdll resource mismatch)"),
             majorVersion,
             minorVersion,
-            buildNumber,
-            DT_WINVERSION);
-
+            testBuildNumber,
+            DT_BUILDNUMBER);
+        bRecognized = FALSE;
     }
 
     //
-    // Find valid build range for version.
-    // 
+    // SharedUserData->NtBuildNumber is kernel-fed and read-only in user mode.
+    // Only valid on Win10+ (on 6.x this offset is reserved). Mask as for reference.
     //
-    // Windows 7
-    //
-    if (majorVersion == 6 && minorVersion == 1) {
-        buildNumberMin = NT_WIN7_RTM;
-        buildNumberMax = NT_WIN7_SP1;
+    if (majorVersion == 10) {
+        ULONG sharedBuild = USER_SHARED_DATA->NtBuildNumber & 0xffff;
+        if (sharedBuild != testBuildNumber &&
+            !IS_SAME_FEATURE_PACK_FAMILY(sharedBuild, testBuildNumber)) {
+            SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows build number (SharedUserData/PEB mismatch)"),
+                majorVersion,
+                minorVersion,
+                testBuildNumber,
+                DT_BUILDNUMBER);
+            bRecognized = FALSE;
+        }
     }
-    else {
-        //
-        // Windows 8/8.1
-        //
-        if (majorVersion == 6 && minorVersion <= 3) {
-            if (minorVersion == 2) {
-                //
-                // Windows 8.
-                //
-                buildNumberMin = NT_WIN8_RTM;
-                buildNumberMax = NT_WIN8_RTM;
-            }
-            else
-            {
-                //
-                // Windows 8.1
-                //
-                if (minorVersion == 3) {
-                    buildNumberMin = NT_WIN8_BLUE;
-                    buildNumberMax = NT_WIN8_BLUE;
-                }
-            }
 
+    //
+    // Domain controllers report NtProductLanManNt, not NtProductServer.
+    //
+
+    bIsServer = (USER_SHARED_DATA->NtProductType == NtProductServer ||
+        USER_SHARED_DATA->NtProductType == NtProductLanManNt);
+
+    if (bRecognized && majorVersion == 10 && testBuildNumber > NT_WIN10_22H2) {
+        if (bIsServer) {
+            bRecognized = IS_WINSRV_ONLY_BUILD(testBuildNumber) ||   // 20348 (2022), 25398 (23H2 AC)
+                (testBuildNumber == NT_WIN11_24H2);        // 26100 (Server 2025)
         }
         else {
-            //
-            // Windows 10+
-            //
-            if (majorVersion == 10) {
-                if (testBuildNumber < NT_WIN10_THRESHOLD1) {
-                    bRecognized = FALSE;
-                }
-                else {
-                    if (testBuildNumber > NT_WIN10_22H2) {
-                        if (USER_SHARED_DATA->NtProductType == NtProductServer) {
-                            buildNumberMin = NT_WINSRV_21H1;
-                            buildNumberMax = NT_WINSRV_21H1;
-                        }
-                        else {
-                            buildNumberMin = NT_WIN11_21H2;
-                            buildNumberMax = NT_WIN11_25H2;
-                        }
-                    }
-                    else {
-                        buildNumberMin = NT_WIN10_THRESHOLD1;
-                        buildNumberMax = NT_WIN10_22H2;
-                    }
-                }
-            }
-            else {
-                bRecognized = FALSE;
-            }
+            bRecognized = !IS_WINSRV_ONLY_BUILD(testBuildNumber);
+        }
+
+        if (!bRecognized) {
+            SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows version (SKU/build mismatch)"),
+                majorVersion,
+                minorVersion,
+                testBuildNumber,
+                DT_WINVERSION);
         }
     }
 
-    if (bRecognized == FALSE) {
+    //
+    // Cross-check with kernel reference build (allow feature pack family drift).
+    //
 
-        SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows version"),
-            majorVersion,
-            minorVersion,
-            buildNumber,
-            DT_WINVERSION);
-    }
+    if (Context->ReferenceNtBuildNumber) {
 
-
-    if (buildNumberMin && buildNumberMax) {
-        if (!(testBuildNumber >= buildNumberMin && testBuildNumber <= buildNumberMax)) {
-
-            SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows build number"),
+        //
+        // Reference is the kernel base. It must equal the exact expected base for
+        // the reported build. This subsumes the IsFeaturePack flag for this check.
+        //
+        if (Context->ReferenceNtBuildNumber != SkpExpectedKernelBaseBuild(testBuildNumber)) {
+            SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows build number (kernel reference)"),
                 majorVersion,
                 minorVersion,
                 testBuildNumber,
                 DT_BUILDNUMBER);
         }
-    }
 
-    if (Context->ReferenceNtBuildNumber) {
-        if (!Context->Win10FeaturePack && !IS_WIN10_FEATURE_PACK_RANGE(testBuildNumber)) {
-            if (Context->ReferenceNtBuildNumber != testBuildNumber)
+        if (!(Context->IsFeaturePack && IS_SAME_FEATURE_PACK_FAMILY(Context->ReferenceNtBuildNumber, testBuildNumber))) {
+            if (Context->ReferenceNtBuildNumber != testBuildNumber) {
                 SkReportWrongWinVersion((LPWSTR)TEXT("Suspicious Windows build number"),
                     majorVersion,
                     minorVersion,
                     testBuildNumber,
                     DT_BUILDNUMBER);
+            }
         }
     }
 
@@ -502,6 +554,6 @@ BOOL SkVerifyWinVersion(
                 DT_WINVERSION);
         }
     } //func will throw errors automatically.
-    
+
     return (SkiGetAnomalyCount() == oldAnomalyCount);
 }

@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.50
 *
-*  DATE:        22 Nov 2026
+*  DATE:        23 Nov 2026
 *
 *  Common header file for the program probes.
 *
@@ -77,7 +77,7 @@ typedef struct _PROBE_STARTUP_INFO {
 
 typedef struct _PROBE_CONTEXT {
     BOOL IsClientElevated;
-    BOOL Win10FeaturePack;
+    BOOL IsFeaturePack;
     ULONG WindowsMajorVersion;
     ULONG WindowsMinorVersion;
     ULONG ReferenceNtBuildNumber;

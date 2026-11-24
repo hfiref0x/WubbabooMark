@@ -1591,7 +1591,7 @@ ULONG supEnumServiceExports(
 * Find base address for the given address value.
 *
 */
-PVOID supLdrFindImageByAddressEx(
+NTSTATUS supLdrFindImageByAddressEx(
     _In_ BOOL LockLoader,
     _In_ ULONG NtBuildNumber,
     _In_opt_ PVOID AddressValue,
@@ -1599,6 +1599,7 @@ PVOID supLdrFindImageByAddressEx(
 )
 {
     BOOL addressInImage;
+    NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
     PLDR_DATA_TABLE_ENTRY ldrTableEntry;
     PLIST_ENTRY listHead;
     PLIST_ENTRY nextEntry;
@@ -1614,8 +1615,6 @@ PVOID supLdrFindImageByAddressEx(
     ULONG lockDisposition = LDR_LOCK_LOADER_LOCK_DISPOSITION_INVALID;
     PVOID lockCookie = NULL;
 
-    NTSTATUS ntStatus;
-
     *ImageBase = NULL;
 
     if (LockLoader) {
@@ -1623,7 +1622,7 @@ PVOID supLdrFindImageByAddressEx(
             &lockDisposition, &lockCookie);
 
         if (!NT_SUCCESS(ntStatus))
-            return NULL;
+            return ntStatus;
 
         //
         // Loader lock failed. Query virtual memory.
@@ -1640,17 +1639,18 @@ PVOID supLdrFindImageByAddressEx(
                 NULL);
 
             if (!NT_SUCCESS(ntStatus)) {
-                mi.AllocationBase = NULL;
+                *ImageBase = NULL;
             }
             else {
                 if (mi.Type == MEM_IMAGE) {
                     *ImageBase = mi.AllocationBase;
                 }
                 else {
-                    mi.AllocationBase = NULL;;
+                    *ImageBase = NULL;
+                    ntStatus = STATUS_UNSUCCESSFUL;
                 }
             }
-            return mi.AllocationBase;
+            return ntStatus;
         }
 
     }
@@ -1662,6 +1662,7 @@ PVOID supLdrFindImageByAddressEx(
     __try {
 
         ULONG cLoops = 0;
+        ntStatus = STATUS_UNSUCCESSFUL;
 
         if (currentPeb->Ldr != NULL) {
             listHead = &currentPeb->Ldr->InLoadOrderModuleList;
@@ -1681,7 +1682,7 @@ PVOID supLdrFindImageByAddressEx(
                             MEMORY_IMAGE_EXTENSION_INFORMATION extInfo;
                             RtlSecureZeroMemory(&extInfo, sizeof(extInfo));
 
-                            ntStatus = NtQueryVirtualMemory(
+                            NTSTATUS extStatus = NtQueryVirtualMemory(
                                 NtCurrentProcess(),
                                 pvImageBase,
                                 MemoryImageExtensionInformation,
@@ -1689,7 +1690,7 @@ PVOID supLdrFindImageByAddressEx(
                                 sizeof(extInfo),
                                 NULL);
 
-                            if (NT_SUCCESS(ntStatus) && extInfo.ExtensionSize != 0) {
+                            if (NT_SUCCESS(extStatus) && extInfo.ExtensionSize != 0) {
 
                                 ULONG_PTR imageBase = (ULONG_PTR)pvImageBase;
                                 ULONG_PTR extensionRva = (ULONG_PTR)extInfo.ExtensionImageBaseRva;
@@ -1703,6 +1704,7 @@ PVOID supLdrFindImageByAddressEx(
 
                         if (addressInImage) {
                             foundBase = pvImageBase;
+                            ntStatus = STATUS_SUCCESS;
                             break;
                         }
                     }
@@ -1715,6 +1717,7 @@ PVOID supLdrFindImageByAddressEx(
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
         foundBase = NULL;
+        ntStatus = STATUS_INTERNAL_ERROR;
     }
 
     if (LockLoader) {
@@ -1722,7 +1725,7 @@ PVOID supLdrFindImageByAddressEx(
     }
 
     *ImageBase = foundBase;
-    return foundBase;
+    return ntStatus;
 }
 
 /*
@@ -1733,7 +1736,7 @@ PVOID supLdrFindImageByAddressEx(
 * Find base address for the given address value.
 *
 */
-PVOID supLdrFindImageByAddress(
+NTSTATUS supLdrFindImageByAddress(
     _In_opt_ PVOID AddressValue,
     _Out_ PVOID* ImageBase,
     _In_ ULONG NtBuildNumber

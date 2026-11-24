@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.50
 *
-*  DATE:        22 Nov 2026
+*  DATE:        23 Nov 2026
 *
 *  Common header file for the program support routines.
 *
@@ -57,59 +57,67 @@ typedef enum _DBG_CHECK_METHOD {
 
 typedef VOID(NTAPI* PFEFN)();
 
-//
-// Ripped from vmprotect with brave and courage.
-//
-
-typedef enum _KNOWN_BUILD_NUMBER {
-    WINDOWS_7 = 7600,
-    WINDOWS_7_SP1 = 7601,
-    WINDOWS_8 = 9200,
-    WINDOWS_8_1 = 9600,
-    WINDOWS_10_TH1 = 10240,
-    WINDOWS_10_TH2 = 10586,
-    WINDOWS_10_RS1 = 14393,
-    WINDOWS_10_RS2 = 15063,
-    WINDOWS_10_RS3 = 16299,
-    WINDOWS_10_RS4 = 17134,
-    WINDOWS_10_RS5 = 17763,
-    WINDOWS_10_19H1 = 18362,
-    WINDOWS_10_19H2 = 18363,
-    WINDOWS_10_20H1 = 19041,
-    WINDOWS_10_20H2 = 19042,
-    WINDOWS_10_21H1 = 19043,
-    WINDOWS_10_21H2 = 19044,
-    WINDOWS_10_22H2 = 19045,
-    WINDOWS_11_21H2 = 22000,
-    WINDOWS_11_22H2 = 22621
-} KNOWN_BUILD_NUMBER;
-
 #define IS_KNOWN_WINDOWS_BUILD(b) ( \
-                                    (b) == WINDOWS_7 || \
-                                    (b) == WINDOWS_7_SP1 || \
-                                    (b) == WINDOWS_8 || \
-                                    (b) == WINDOWS_8_1 || \
-                                    (b) == WINDOWS_10_TH1 || \
-                                    (b) == WINDOWS_10_TH2 || \
-                                    (b) == WINDOWS_10_RS1 || \
-                                    (b) == WINDOWS_10_RS2 || \
-                                    (b) == WINDOWS_10_RS3 || \
-                                    (b) == WINDOWS_10_RS4 || \
-                                    (b) == WINDOWS_10_RS5 || \
-                                    (b) == WINDOWS_10_19H1 || \
-                                    (b) == WINDOWS_10_19H2 || \
-                                    (b) == WINDOWS_10_20H1 || \
-                                    (b) == WINDOWS_10_20H2 || \
-                                    (b) == WINDOWS_10_21H1 || \
-                                    (b) == WINDOWS_10_21H2 || \
-                                    (b) == WINDOWS_10_22H2 \
+                                    (b) == NT_WIN7_RTM || \
+                                    (b) == NT_WIN7_SP1 || \
+                                    (b) == NT_WIN8_RTM || \
+                                    (b) == NT_WIN8_BLUE || \
+                                    (b) == NT_WIN10_THRESHOLD1 || \
+                                    (b) == NT_WIN10_THRESHOLD2 || \
+                                    (b) == NT_WIN10_REDSTONE1 || \
+                                    (b) == NT_WIN10_REDSTONE2 || \
+                                    (b) == NT_WIN10_REDSTONE3 || \
+                                    (b) == NT_WIN10_REDSTONE4 || \
+                                    (b) == NT_WIN10_REDSTONE5 || \
+                                    (b) == NT_WIN10_19H1 || \
+                                    (b) == NT_WIN10_19H2 || \
+                                    (b) == NT_WIN10_20H1 || \
+                                    (b) == NT_WIN10_20H2 || \
+                                    (b) == NT_WIN10_21H1 || \
+                                    (b) == NT_WIN10_21H2 || \
+                                    (b) == NT_WIN10_22H2 || \
+                                    (b) == NT_WINSRV_21H1 || \
+                                    (b) == NT_WIN11_21H2 || \
+                                    (b) == NT_WIN11_22H2 || \
+                                    (b) == NT_WIN11_23H2 || \
+                                    (b) == NT_WINSRV_23H2 || \
+                                    (b) == NT_WIN11_24H2 || \
+                                    (b) == NT_WIN11_25H2 || \
+                                    (b) == NT_WIN11_26H2 || \
+                                    (b) == NT_WIN11_26H1 \
                                   )
 
 //
-// End of rip.
+// Further version should be cross-checked with usermode values and NtBuildNumber hardcoded inside kernel.
 //
 
-#define IS_WIN10_FEATURE_PACK_RANGE(b) ((b) >= WINDOWS_10_20H1 && (b) <= WINDOWS_10_22H2) //fake versions (all based on 19041)
+//
+// "Fake" build numbers: enablement packages sharing one real kernel base.
+// Lower bound is the real base build of each servicing family.
+//
+#define IS_WIN10_19H_FEATURE_PACK_RANGE(b) (((b) >= NT_WIN10_19H1) && ((b) <= NT_WIN10_19H2)) // 18362 base
+#define IS_WIN10_FEATURE_PACK_RANGE(b)     (((b) >= NT_WIN10_20H1) && ((b) <= NT_WIN10_22H2)) // 19041 base
+#define IS_WIN11_NI_FEATURE_PACK_RANGE(b)  (((b) >= NT_WIN11_22H2) && ((b) <= NT_WIN11_23H2)) // 22621 base
+#define IS_WIN11_GE_FEATURE_PACK_RANGE(b)  (((b) >= NT_WIN11_24H2) && ((b) <= NT_WIN11_26H2)) // 26100 base
+
+#define IS_FEATURE_PACK_RANGE(b) ( \
+    IS_WIN10_19H_FEATURE_PACK_RANGE(b) || \
+    IS_WIN10_FEATURE_PACK_RANGE(b) || \
+    IS_WIN11_NI_FEATURE_PACK_RANGE(b) || \
+    IS_WIN11_GE_FEATURE_PACK_RANGE(b) )
+
+#define IS_SAME_FEATURE_PACK_FAMILY(a, b) ( \
+    (IS_WIN10_19H_FEATURE_PACK_RANGE(a) && IS_WIN10_19H_FEATURE_PACK_RANGE(b)) || \
+    (IS_WIN10_FEATURE_PACK_RANGE(a) && IS_WIN10_FEATURE_PACK_RANGE(b)) || \
+    (IS_WIN11_NI_FEATURE_PACK_RANGE(a) && IS_WIN11_NI_FEATURE_PACK_RANGE(b)) || \
+    (IS_WIN11_GE_FEATURE_PACK_RANGE(a) && IS_WIN11_GE_FEATURE_PACK_RANGE(b)) )
+
+//
+// Builds that exist ONLY as server SKU (client PEB claiming these is tampering).
+//
+#define IS_WINSRV_ONLY_BUILD(b) ( \
+    (b) == NT_WINSRV_21H1 || \
+    (b) == NT_WINSRV_23H2 )
 
 typedef enum _SIGNATURE_INFO_TYPE {
     SIT_UNKNOWN = 0x0,
@@ -222,10 +230,10 @@ VOID supRunAsAdmin(
     VOID);
 
 BOOL supWriteConfiguration(
-    _In_ struct _PROBE_SETTINGS *Settings);
+    _In_ struct _PROBE_SETTINGS* Settings);
 
 BOOL supReadConfiguration(
-    _Out_ struct _PROBE_SETTINGS *Settings);
+    _Out_ struct _PROBE_SETTINGS* Settings);
 
 VOID supSetMitigationPolicies();
 
@@ -369,12 +377,12 @@ LPVOID supLdrGetProcAddressEx(
     _In_ LPVOID ImageBase,
     _In_ LPCSTR RoutineName);
 
-PVOID supLdrFindImageByAddress(
+NTSTATUS supLdrFindImageByAddress(
     _In_opt_ PVOID AddressValue,
     _Out_ PVOID* ImageBase,
     _In_ ULONG NtBuildNumber);
 
-PVOID supLdrFindImageByAddressEx(
+NTSTATUS supLdrFindImageByAddressEx(
     _In_ BOOL LockLoader,
     _In_ ULONG NtBuildNumber,
     _In_opt_ PVOID AddressValue,
